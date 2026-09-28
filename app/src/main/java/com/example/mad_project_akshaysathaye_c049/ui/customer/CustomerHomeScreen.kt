@@ -41,13 +41,25 @@ import com.example.mad_project_akshaysathaye_c049.ui.components.SectionHeading
 fun CustomerHomeScreen(
     onNavigateToGarages: () -> Unit,
     onNavigateToGarageDetail: (String) -> Unit,
-    onNavigateToRoute: (String) -> Unit
+    onNavigateToRoute: (String) -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
-            AutoCareTopBar(title = "AutoCare")
+            AutoCareTopBar(
+                title = "AutoCare",
+                actions = {
+                    androidx.compose.material3.TextButton(onClick = onLogout) {
+                        Text(
+                            text = "Logout",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            )
         },
         bottomBar = {
             CustomerBottomBar(

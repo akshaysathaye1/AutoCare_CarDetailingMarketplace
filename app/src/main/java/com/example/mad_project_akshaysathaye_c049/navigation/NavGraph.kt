@@ -60,8 +60,16 @@ fun AutoCareNavGraph(
 
         composable(Screen.Register.route) {
             RegisterScreen(
-                onNavigateToRoleSelection = {
-                    navController.navigate(Screen.RoleSelection.route)
+                onRegistrationSuccess = { role ->
+                    if (role == "CUSTOMER") {
+                        navController.navigate(Screen.CustomerHome.route) {
+                            popUpTo(Screen.Register.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.GarageDashboard.route) {
+                            popUpTo(Screen.Register.route) { inclusive = true }
+                        }
+                    }
                 },
                 onNavigateToLogin = {
                     navController.popBackStack()
@@ -97,6 +105,12 @@ fun AutoCareNavGraph(
                 onNavigateToRoute = { route ->
                     navController.navigate(route) {
                         popUpTo(Screen.CustomerHome.route)
+                    }
+                },
+                onLogout = {
+                    com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository().logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )
@@ -162,6 +176,12 @@ fun AutoCareNavGraph(
                 onNavigateToRoute = { route ->
                     navController.navigate(route) {
                         popUpTo(Screen.GarageDashboard.route)
+                    }
+                },
+                onLogout = {
+                    com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository().logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

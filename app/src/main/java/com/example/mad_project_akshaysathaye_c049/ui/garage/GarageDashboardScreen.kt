@@ -34,11 +34,23 @@ fun GarageDashboardScreen(
     onNavigateToServices: () -> Unit,
     onNavigateToBookings: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    onNavigateToRoute: (String) -> Unit
+    onNavigateToRoute: (String) -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
-            AutoCareTopBar(title = "AutoCare Partner")
+            AutoCareTopBar(
+                title = "AutoCare Partner",
+                actions = {
+                    androidx.compose.material3.TextButton(onClick = onLogout) {
+                        Text(
+                            text = "Logout",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            )
         },
         bottomBar = {
             GarageBottomBar(
