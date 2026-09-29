@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Users Collection
+    // Anyone can create their profile.
+    // Users can only read or update their own profile.
+    match /users/{userId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 2. Garages Collection
+    // Anyone authenticated can read garage data.
+    // Only users with the 'GARAGE' role can create or update garages.
+    match /garages/{garageId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null 
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE';
+    }
+
+    // 3. Services Collection
+    // Anyone authenticated can read service data.
+    // Only garage owners can create or update services.
+    match /services/{serviceId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null 
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE';
+    }
+
+    // 4. Vehicles Collection
+    // Users can only manage their own vehicles.
+    match /vehicles/{vehicleId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      // Allow creation if the ownerId matches the requesting user
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+    }
+
+    // 5. Bookings Collection
+    // Customers can read their own bookings. Garages can read bookings for their garage.
+    match /bookings/{bookingId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.customerId;
+      allow read, update: if request.auth != null && 
+                          (request.auth.uid == resource.data.customerId || 
+                           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE'));
+    }
+
+    // 6. Reviews Collection
+    // Anyone can read reviews. Only customers can create them.
+    match /reviews/{reviewId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.customerId;
+    }
+  }
+}

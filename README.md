@@ -8,7 +8,7 @@ A marketplace connecting car owners with garages and automobile workshops.
 - `ui`: Contains Jetpack Compose UI screens, themes, and reusable components.
 
 ## Member Contributions
-- **Member 1**: Foundation, UI, Database Setup, Firebase Authentication
+- **Member 1**: Foundation, UI, Database Setup, Firebase Authentication (See [HANDOVER.md](HANDOVER.md))
 - **Member 2**: Garage Marketplace
 - **Member 3**: Booking Engine
 - **Member 4**: Dashboards & Reviews
