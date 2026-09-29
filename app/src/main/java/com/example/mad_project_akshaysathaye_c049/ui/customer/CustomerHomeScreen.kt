@@ -42,9 +42,21 @@ fun CustomerHomeScreen(
     onNavigateToGarages: () -> Unit,
     onNavigateToGarageDetail: (String) -> Unit,
     onNavigateToRoute: (String) -> Unit,
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    garageRepository: com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository = remember { com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository() }
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var garagesList by remember { mutableStateOf<List<com.example.mad_project_akshaysathaye_c049.data.model.Garage>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        isLoading = true
+        val result = garageRepository.getAllGarages()
+        if (result.isSuccess) {
+            garagesList = result.getOrDefault(emptyList())
+        }
+        isLoading = false
+    }
 
     Scaffold(
         topBar = {
@@ -222,47 +234,53 @@ fun CustomerHomeScreen(
                 Triple("AutoShine Express Workshop", "4.6", "Koramangala • 5.0 km away")
             )
 
-            garages.forEachIndexed { index, (name, rating, location) ->
-                AppCard(
-                    onClick = { onNavigateToGarageDetail("garage_${index + 1}") },
-                    modifier = Modifier.padding(bottom = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+            if (isLoading) {
+                androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            } else if (garagesList.isNotEmpty()) {
+                garagesList.take(3).forEach { garage ->
+                    AppCard(
+                        onClick = { onNavigateToGarageDetail(garage.id) },
+                        modifier = Modifier.padding(bottom = 12.dp)
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(52.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(52.dp)
                             ) {
-                                Text(text = "🚘", fontSize = 24.sp)
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(text = "🚘", fontSize = 24.sp)
+                                }
                             }
-                        }
 
-                        Spacer(modifier = Modifier.width(14.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = name,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = location,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            RatingComponent(rating = rating.toDouble(), reviewCount = (index + 2) * 45)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = garage.name,
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${garage.address}, ${garage.city}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                RatingComponent(rating = garage.rating, reviewCount = garage.reviewCount)
+                            }
                         }
                     }
                 }
+            } else {
+                Text("No garages available.", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

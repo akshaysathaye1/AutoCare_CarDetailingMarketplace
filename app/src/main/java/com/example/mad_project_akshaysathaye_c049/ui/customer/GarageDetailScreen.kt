@@ -12,6 +12,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -26,8 +28,26 @@ import com.example.mad_project_akshaysathaye_c049.ui.components.SectionHeading
 fun GarageDetailScreen(
     garageId: String,
     onNavigateToServiceDetail: (String) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    garageRepository: com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository = androidx.compose.runtime.remember { com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository() },
+    serviceRepository: com.example.mad_project_akshaysathaye_c049.data.repository.ServiceRepository = androidx.compose.runtime.remember { com.example.mad_project_akshaysathaye_c049.data.repository.ServiceRepository() }
 ) {
+    var garage by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.example.mad_project_akshaysathaye_c049.data.model.Garage?>(null) }
+    var services by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<List<com.example.mad_project_akshaysathaye_c049.data.model.Service>>(emptyList()) }
+    var isLoading by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+
+    androidx.compose.runtime.LaunchedEffect(garageId) {
+        isLoading = true
+        val garageResult = garageRepository.getGarageById(garageId)
+        if (garageResult.isSuccess) {
+            garage = garageResult.getOrNull()
+        }
+        val servicesResult = serviceRepository.getServicesByGarageId(garageId)
+        if (servicesResult.isSuccess) {
+            services = servicesResult.getOrDefault(emptyList())
+        }
+        isLoading = false
+    }
     Scaffold(
         topBar = {
             AutoCareTopBar(
@@ -37,62 +57,72 @@ fun GarageDetailScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            item {
-                SectionHeading(title = "SpeedAuto Care Workshop")
-                Spacer(modifier = Modifier.height(4.dp))
-                RatingComponent(rating = 4.8, reviewCount = 142)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "📍 123 Car Street, Bangalore • 📞 +91 9876543210",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Professional automotive detailing studio specializing in ceramic coating, deep interior dry-cleaning, paint protection film (PPF), and general maintenance.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-                SectionHeading(title = "Available Services")
-                Spacer(modifier = Modifier.height(12.dp))
+        if (isLoading) {
+            androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                androidx.compose.material3.CircularProgressIndicator()
             }
+        } else if (garage == null) {
+            androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Garage not found.", style = MaterialTheme.typography.bodyMedium)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp)
+            ) {
+                item {
+                    SectionHeading(title = garage!!.name)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    RatingComponent(rating = garage!!.rating, reviewCount = garage!!.reviewCount)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "📍 ${garage!!.address}, ${garage!!.city} • 📞 ${garage!!.contactNumber}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = garage!!.description,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
 
-            val services = listOf(
-                Triple("srv_1", "Deep Interior Car Detailing", 1499.0),
-                Triple("srv_2", "Exterior Foam Wash & Wax", 799.0),
-                Triple("srv_3", "Ceramic Coating 9H Pro", 9999.0)
-            )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    SectionHeading(title = "Available Services")
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
-            items(services.size) { index ->
-                val (serviceId, title, price) = services[index]
-                AppCard(
-                    onClick = { onNavigateToServiceDetail(serviceId) },
-                    modifier = Modifier.padding(bottom = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Approx. 90 mins • 100% satisfaction guarantee",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                if (services.isEmpty()) {
+                    item {
+                        Text("No services available.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                } else {
+                    items(services.size) { index ->
+                        val service = services[index]
+                        AppCard(
+                            onClick = { onNavigateToServiceDetail(service.id) },
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = service.name,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Category: ${service.category} • Approx. ${service.durationMinutes} mins",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                PriceComponent(price = service.price)
+                            }
                         }
-                        PriceComponent(price = price)
                     }
                 }
             }

@@ -22,6 +22,9 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        com.example.mad_project_akshaysathaye_c049.data.mock.MockDataInjector().injectGaragesWithPredefinedIds()
+                    }
                     val navController = rememberNavController()
                     AutoCareNavGraph(navController = navController)
                 }
