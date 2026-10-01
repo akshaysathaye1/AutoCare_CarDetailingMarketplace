@@ -24,7 +24,7 @@ fun ManageServicesScreen(
     var servicesList by remember { mutableStateOf<List<Service>>(emptyList()) }
         var isLoading by remember { mutableStateOf(false) }
         var isDialogVisible by remember { mutableStateOf(false) }
-    // Service validation enabled: non-empty name, positive price, positive duration
+        // Connected to Firestore createService
 
     Scaffold(
         topBar = {
