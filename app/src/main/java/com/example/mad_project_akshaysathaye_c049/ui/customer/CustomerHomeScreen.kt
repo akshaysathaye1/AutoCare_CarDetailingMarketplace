@@ -26,7 +26,17 @@ fun CustomerHomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var garagesList by remember { mutableStateOf<List<Garage>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+        var isLoading by remember { mutableStateOf(true) }
+
+    val filteredGarages = remember(garagesList, searchQuery) {
+        if (searchQuery.isBlank()) garagesList
+        else garagesList.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+            it.address.contains(searchQuery, ignoreCase = true) ||
+            it.city.contains(searchQuery, ignoreCase = true) ||
+            it.description.contains(searchQuery, ignoreCase = true)
+        }
+    }
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -197,8 +207,8 @@ fun CustomerHomeScreen(
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-            } else if (garagesList.isNotEmpty()) {
-                garagesList.forEach { garage ->
+            } else if (filteredGarages.isNotEmpty()) {
+                filteredGarages.forEach { garage ->
                     AppCard(
                         onClick = { onNavigateToGarageDetail(garage.id) },
                         modifier = Modifier.padding(bottom = 12.dp)
