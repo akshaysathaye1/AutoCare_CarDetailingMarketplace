@@ -92,7 +92,14 @@ fun CustomerHomeScreen(
             CustomTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                label = "🔍 Search garages, services (e.g. PPF, Foam Wash)"
+                label = "🔍 Search garages by name, address or city",
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Text(text = "✕", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                } else null
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -266,6 +273,31 @@ fun CustomerHomeScreen(
                                 RatingComponent(rating = garage.rating, reviewCount = garage.reviewCount)
                             }
                         }
+                    }
+                }
+            } else if (searchQuery.isNotBlank() && filteredGarages.isEmpty()) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = "🔍", fontSize = 36.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "No Garages Found",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "No garages match \"$searchQuery\". Try adjusting your search query.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        PrimaryButton(
+                            text = "Reset Search",
+                            onClick = { searchQuery = "" }
+                        )
                     }
                 }
             } else {
