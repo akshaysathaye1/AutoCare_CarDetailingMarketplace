@@ -1,41 +1,20 @@
 package com.example.mad_project_akshaysathaye_c049.ui.customer
 
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.mad_project_akshaysathaye_c049.ui.components.AppCard
-import com.example.mad_project_akshaysathaye_c049.ui.components.AutoCareTopBar
-import com.example.mad_project_akshaysathaye_c049.ui.components.CustomerBottomBar
-import com.example.mad_project_akshaysathaye_c049.ui.components.CustomTextField
-import com.example.mad_project_akshaysathaye_c049.ui.components.RatingComponent
-import com.example.mad_project_akshaysathaye_c049.ui.components.SectionHeading
+import com.example.mad_project_akshaysathaye_c049.data.model.Garage
+import com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository
+import com.example.mad_project_akshaysathaye_c049.ui.components.*
 
 @Composable
 fun CustomerHomeScreen(
@@ -43,13 +22,13 @@ fun CustomerHomeScreen(
     onNavigateToGarageDetail: (String) -> Unit,
     onNavigateToRoute: (String) -> Unit,
     onLogout: () -> Unit = {},
-    garageRepository: com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository = remember { com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository() }
+    garageRepository: GarageRepository = remember { GarageRepository() }
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var garagesList by remember { mutableStateOf<List<com.example.mad_project_akshaysathaye_c049.data.model.Garage>>(emptyList()) }
+    var garagesList by remember { mutableStateOf<List<Garage>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         isLoading = true
         val result = garageRepository.getAllGarages()
         if (result.isSuccess) {
@@ -63,7 +42,7 @@ fun CustomerHomeScreen(
             AutoCareTopBar(
                 title = "AutoCare",
                 actions = {
-                    androidx.compose.material3.TextButton(onClick = onLogout) {
+                    TextButton(onClick = onLogout) {
                         Text(
                             text = "Logout",
                             color = MaterialTheme.colorScheme.onPrimary,
@@ -87,29 +66,19 @@ fun CustomerHomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // 1. User Greeting & Subtitle
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Good day, Car Enthusiast! 👋",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Find the best garages & detailing studios nearby",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            Text(
+                text = "Good day, Car Enthusiast! 👋",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Find the best garages & detailing studios nearby",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // 2. Search Bar
             CustomTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -118,10 +87,7 @@ fun CustomerHomeScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. Upcoming Booking Placeholder
-            AppCard(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            AppCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -160,7 +126,6 @@ fun CustomerHomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 4. Popular Services Horizontal Row
             SectionHeading(title = "Popular Detailing & Services")
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -209,35 +174,31 @@ fun CustomerHomeScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // 5. Featured Garages Section
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SectionHeading(title = "Recommended Garages")
-                Text(
-                    text = "View All →",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    ),
-                    modifier = Modifier.padding(end = 4.dp)
-                )
+                SectionHeading(title = "Recommended Garages (${garagesList.size})")
+                TextButton(onClick = onNavigateToGarages) {
+                    Text(
+                        text = "View All →",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val garages = listOf(
-                Triple("SpeedAuto Detailing Studio", "4.8", "MG Road • 2.5 km away"),
-                Triple("Apex Motor Works & Tuning", "4.9", "Indiranagar • 4.1 km away"),
-                Triple("AutoShine Express Workshop", "4.6", "Koramangala • 5.0 km away")
-            )
-
             if (isLoading) {
-                androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             } else if (garagesList.isNotEmpty()) {
-                garagesList.take(3).forEach { garage ->
+                garagesList.forEach { garage ->
                     AppCard(
                         onClick = { onNavigateToGarageDetail(garage.id) },
                         modifier = Modifier.padding(bottom = 12.dp)
@@ -251,10 +212,9 @@ fun CustomerHomeScreen(
                                 color = MaterialTheme.colorScheme.primaryContainer,
                                 modifier = Modifier.size(52.dp)
                             ) {
-                                Column(
+                                Box(
                                     modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.Center,
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Text(text = "🚘", fontSize = 24.sp)
                                 }
@@ -263,10 +223,29 @@ fun CustomerHomeScreen(
                             Spacer(modifier = Modifier.width(14.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = garage.name,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = garage.name,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (garage.isOpen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                                    ) {
+                                        Text(
+                                            text = if (garage.isOpen) "Open" else "Closed",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = if (garage.isOpen) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "${garage.address}, ${garage.city}",
