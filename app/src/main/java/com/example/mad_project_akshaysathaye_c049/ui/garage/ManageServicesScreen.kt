@@ -24,7 +24,7 @@ fun ManageServicesScreen(
     var servicesList by remember { mutableStateOf<List<Service>>(emptyList()) }
         var isLoading by remember { mutableStateOf(false) }
         var isDialogVisible by remember { mutableStateOf(false) }
-        // Connected to Firestore createService
+            var serviceBeingEdited by remember { mutableStateOf<Service?>(null) }
 
     Scaffold(
         topBar = {
