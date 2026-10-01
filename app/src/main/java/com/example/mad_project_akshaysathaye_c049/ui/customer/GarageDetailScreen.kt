@@ -77,7 +77,7 @@ fun GarageDetailScreen(
                     when (selectedTabIndex) {
                         0 -> Text("Services tab with dynamic packages from ServiceRepository")
                         1 -> Text("Reviews tab")
-                        2 -> Text("Info tab")
+                        2 -> Text("Info tab with workshop description, address, timings and contact")
                     }
                 }
             }
