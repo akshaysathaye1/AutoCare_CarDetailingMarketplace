@@ -28,4 +28,24 @@ class ServiceRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun updateService(service: Service): Result<Unit> {
+        return try {
+            val documentId = if (service.id.isEmpty()) servicesCollection.document().id else service.id
+            val updated = service.copy(id = documentId)
+            servicesCollection.document(documentId).set(updated).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteService(serviceId: String): Result<Unit> {
+        return try {
+            servicesCollection.document(serviceId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

@@ -37,4 +37,14 @@ class GarageRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun getGarageByOwnerId(ownerId: String): Result<Garage?> {
+        return try {
+            val snapshot = garagesCollection.whereEqualTo("ownerId", ownerId).limit(1).get().await()
+            val garage = snapshot.documents.firstOrNull()?.toObject(Garage::class.java)
+            Result.success(garage)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
