@@ -26,7 +26,15 @@ fun CustomerHomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var garagesList by remember { mutableStateOf<List<Garage>>(emptyList()) }
-        var isLoading by remember { mutableStateOf(true) }
+            var isLoading by remember { mutableStateOf(true) }
+    var selectedMinRating by remember { mutableDoubleStateOf(0.0) }
+    var selectedCity by remember { mutableStateOf<String?>(null) }
+    var onlyOpenNow by remember { mutableStateOf(false) }
+    var showFilterDialog by remember { mutableStateOf(false) }
+
+    val availableCities = remember(garagesList) {
+        garagesList.map { it.city.trim() }.filter { it.isNotBlank() }.distinct().sorted()
+    }
 
     val filteredGarages = remember(garagesList, searchQuery) {
         if (searchQuery.isBlank()) garagesList
