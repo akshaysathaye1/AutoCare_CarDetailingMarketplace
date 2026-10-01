@@ -18,7 +18,8 @@ fun GarageDetailScreen(
     garageId: String,
     onNavigateToServiceDetail: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    garageRepository: GarageRepository = remember { GarageRepository() }
+        garageRepository: GarageRepository = remember { GarageRepository() },
+    serviceRepository: com.example.mad_project_akshaysathaye_c049.data.repository.ServiceRepository = remember { com.example.mad_project_akshaysathaye_c049.data.repository.ServiceRepository() }
 ) {
     var garage by remember { mutableStateOf<Garage?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -74,7 +75,7 @@ fun GarageDetailScreen(
 
                 Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
                     when (selectedTabIndex) {
-                        0 -> Text("Services tab")
+                        0 -> Text("Services tab with dynamic packages from ServiceRepository")
                         1 -> Text("Reviews tab")
                         2 -> Text("Info tab")
                     }
