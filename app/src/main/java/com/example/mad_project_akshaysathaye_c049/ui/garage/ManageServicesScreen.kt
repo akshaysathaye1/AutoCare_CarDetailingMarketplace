@@ -22,7 +22,8 @@ fun ManageServicesScreen(
     serviceRepository: ServiceRepository = remember { ServiceRepository() }
 ) {
     var servicesList by remember { mutableStateOf<List<Service>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
+        var isLoading by remember { mutableStateOf(false) }
+    var isDialogVisible by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -48,7 +49,7 @@ fun ManageServicesScreen(
             item {
                 PrimaryButton(
                     text = "+ Add New Service Package",
-                    onClick = {}
+                    onClick = { isDialogVisible = true }
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
