@@ -66,6 +66,8 @@ fun CustomerBottomBar(
     val items = listOf(
         BottomNavItem("customer_home", "Home", "🏠"),
         BottomNavItem("garage_listing", "Garages", "🔧"),
+        BottomNavItem("customer_bookings", "Bookings", "📅"),
+        BottomNavItem("my_vehicles", "Vehicles", "🚗"),
         BottomNavItem("role_selection", "Switch Role", "🔄")
     )
 
