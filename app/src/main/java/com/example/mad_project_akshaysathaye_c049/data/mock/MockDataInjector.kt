@@ -111,4 +111,72 @@ class MockDataInjector {
             }
         }
     }
+
+    suspend fun injectMember3DataIfNeeded() {
+        try {
+            val vehicleRepository = com.example.mad_project_akshaysathaye_c049.data.repository.VehicleRepository()
+            val bookingRepository = com.example.mad_project_akshaysathaye_c049.data.repository.BookingRepository()
+            val authRepository = com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository()
+            val customerId = authRepository.getEffectiveUserId("CUSTOMER")
+
+            val vehicles = vehicleRepository.getVehiclesByOwnerId(customerId).getOrDefault(emptyList())
+            if (vehicles.isEmpty()) {
+                val demoVehicle = com.example.mad_project_akshaysathaye_c049.data.model.Vehicle(
+                    id = "veh_demo_1",
+                    ownerId = customerId,
+                    make = "Honda",
+                    model = "City ZX",
+                    year = "2023",
+                    licensePlate = "KA 01 MJ 1234",
+                    type = "Car",
+                    color = "Platinum White"
+                )
+                vehicleRepository.addVehicle(demoVehicle)
+
+                val demoBike = com.example.mad_project_akshaysathaye_c049.data.model.Vehicle(
+                    id = "veh_demo_2",
+                    ownerId = customerId,
+                    make = "Royal Enfield",
+                    model = "Hunter 350",
+                    year = "2022",
+                    licensePlate = "KA 05 AB 9988",
+                    type = "Bike",
+                    color = "Dapper Ash"
+                )
+                vehicleRepository.addVehicle(demoBike)
+            }
+
+            val bookings = bookingRepository.getBookingsByCustomerId(customerId).getOrDefault(emptyList())
+            if (bookings.isEmpty()) {
+                val cal = java.util.Calendar.getInstance()
+                cal.add(java.util.Calendar.DAY_OF_YEAR, 1) // Tomorrow
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                cal.set(java.util.Calendar.MINUTE, 0)
+                cal.set(java.util.Calendar.SECOND, 0)
+                cal.set(java.util.Calendar.MILLISECOND, 0)
+
+                val demoBooking = com.example.mad_project_akshaysathaye_c049.data.model.Booking(
+                    id = "BK_DEMO_1029",
+                    customerId = customerId,
+                    garageId = "garage_1",
+                    serviceId = "svc_1",
+                    vehicleId = "veh_demo_1",
+                    status = "pending",
+                    scheduledDate = cal.timeInMillis,
+                    scheduledTime = "10:30 AM",
+                    totalAmount = 1499.0,
+                    notes = "Deep clean rear seat upholstery please.",
+                    garageName = "SpeedAuto Detailing Studio",
+                    garageAddress = "123 MG Road, Bangalore",
+                    serviceName = "Deep Interior Car Detailing",
+                    vehicleDetails = "Honda City ZX (KA 01 MJ 1234)",
+                    customerName = "Demo Customer",
+                    customerPhone = "+91 98765 43210"
+                )
+                bookingRepository.createBooking(demoBooking)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MockData", "Error injecting Member 3 mock data", e)
+        }
+    }
 }

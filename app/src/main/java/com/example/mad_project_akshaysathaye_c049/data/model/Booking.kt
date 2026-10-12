@@ -12,5 +12,12 @@ data class Booking(
     val totalAmount: Double = 0.0,
     val notes: String = "",
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val garageName: String = "",
+    val garageAddress: String = "",
+    val serviceName: String = "",
+    val vehicleDetails: String = "",
+    val customerName: String = "",
+    val customerPhone: String = "",
+    val cancellationReason: String = ""
 )

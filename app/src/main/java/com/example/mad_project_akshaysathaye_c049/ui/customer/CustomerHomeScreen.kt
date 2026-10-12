@@ -417,8 +417,11 @@ fun CustomerHomeScreen(
 
                 else -> {
                     // Default Home Layout (no active search / filter)
-                    // 1. Upcoming Booking Placeholder
-                    AppCard(modifier = Modifier.fillMaxWidth()) {
+                    // 1. Upcoming Booking Card
+                    AppCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onNavigateToRoute("customer_bookings") }
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,

@@ -29,6 +29,16 @@ class ServiceRepository {
         }
     }
 
+    suspend fun getServiceById(serviceId: String): Result<Service?> {
+        return try {
+            val document = servicesCollection.document(serviceId).get().await()
+            val service = document.toObject(Service::class.java)
+            Result.success(service)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateService(service: Service): Result<Unit> {
         return try {
             val documentId = if (service.id.isEmpty()) servicesCollection.document().id else service.id

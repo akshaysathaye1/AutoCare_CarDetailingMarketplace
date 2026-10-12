@@ -157,6 +157,87 @@ fun AutoCareNavGraph(
                 serviceId = serviceId,
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToBookService = { garageId, sId ->
+                    navController.navigate(Screen.BookService.createRoute(garageId, sId))
+                }
+            )
+        }
+
+        // --- Member 3 Booking Engine & Vehicle Routes ---
+        composable(Screen.CustomerBookings.route) {
+            com.example.mad_project_akshaysathaye_c049.ui.customer.MyBookingsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToGarages = {
+                    navController.navigate(Screen.GarageListing.route)
+                },
+                onNavigateToRoute = { route ->
+                    navController.navigate(route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = Screen.BookService.route,
+            arguments = listOf(
+                navArgument("garageId") { type = NavType.StringType },
+                navArgument("serviceId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val garageId = backStackEntry.arguments?.getString("garageId") ?: ""
+            val serviceId = backStackEntry.arguments?.getString("serviceId") ?: ""
+            com.example.mad_project_akshaysathaye_c049.ui.customer.BookServiceScreen(
+                garageId = garageId,
+                serviceId = serviceId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onBookingSuccess = { _ ->
+                    navController.navigate(Screen.CustomerBookings.route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
+                },
+                onNavigateToAddVehicle = {
+                    navController.navigate(Screen.AddEditVehicle.createRoute(null))
+                }
+            )
+        }
+
+        composable(Screen.MyVehicles.route) {
+            com.example.mad_project_akshaysathaye_c049.ui.customer.MyVehiclesScreen(
+                onNavigateToAddEditVehicle = { vehicleId ->
+                    navController.navigate(Screen.AddEditVehicle.createRoute(vehicleId))
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToRoute = { route ->
+                    navController.navigate(route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = Screen.AddEditVehicle.route,
+            arguments = listOf(
+                navArgument("vehicleId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val vehicleId = backStackEntry.arguments?.getString("vehicleId")
+            com.example.mad_project_akshaysathaye_c049.ui.customer.AddEditVehicleScreen(
+                vehicleId = vehicleId,
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
