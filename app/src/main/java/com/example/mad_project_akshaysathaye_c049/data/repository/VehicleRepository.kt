@@ -8,12 +8,42 @@ class VehicleRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val vehiclesCollection = firestore.collection("vehicles")
 
-    suspend fun addVehicle(vehicle: Vehicle): Result<Unit> {
+    suspend fun addVehicle(vehicle: Vehicle): Result<String> {
         return try {
-            val documentId = if (vehicle.id.isEmpty()) vehiclesCollection.document().id else vehicle.id
+            val documentId = if (vehicle.id.isBlank()) vehiclesCollection.document().id else vehicle.id
             val newVehicle = vehicle.copy(id = documentId)
             vehiclesCollection.document(documentId).set(newVehicle).await()
+            Result.success(documentId)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateVehicle(vehicle: Vehicle): Result<Unit> {
+        return try {
+            val documentId = if (vehicle.id.isBlank()) vehiclesCollection.document().id else vehicle.id
+            val updatedVehicle = vehicle.copy(id = documentId)
+            vehiclesCollection.document(documentId).set(updatedVehicle).await()
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteVehicle(vehicleId: String): Result<Unit> {
+        return try {
+            vehiclesCollection.document(vehicleId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getVehicleById(vehicleId: String): Result<Vehicle?> {
+        return try {
+            val document = vehiclesCollection.document(vehicleId).get().await()
+            val vehicle = document.toObject(Vehicle::class.java)
+            Result.success(vehicle)
         } catch (e: Exception) {
             Result.failure(e)
         }
