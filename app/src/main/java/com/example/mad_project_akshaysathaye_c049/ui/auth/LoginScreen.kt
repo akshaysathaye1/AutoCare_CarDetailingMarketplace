@@ -33,6 +33,15 @@ import com.example.mad_project_akshaysathaye_c049.ui.components.CustomTextField
 import com.example.mad_project_akshaysathaye_c049.ui.components.PrimaryButton
 import com.example.mad_project_akshaysathaye_c049.ui.components.SecondaryButton
 
+// ---------------------------------------------------------------------------
+// Pre-configured Firebase test accounts.
+// Create these users once in Firebase Console → Authentication → Add user.
+// ---------------------------------------------------------------------------
+private const val DEMO_CUSTOMER_EMAIL    = "democustomer@autocare.test"
+private const val DEMO_CUSTOMER_PASSWORD = "Demo@1234"
+private const val DEMO_GARAGE_EMAIL      = "demogarage@autocare.test"
+private const val DEMO_GARAGE_PASSWORD   = "Demo@1234"
+
 @Composable
 fun LoginScreen(
     onLoginSuccess: (String) -> Unit, // role: "CUSTOMER" or "GARAGE"
@@ -132,19 +141,55 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Fast Viva/Testing Shortcuts
+                // Fast Viva/Testing Shortcuts — sign in with real Firebase test accounts
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     SecondaryButton(
                         text = "Demo Customer",
-                        onClick = { onLoginSuccess("CUSTOMER") },
+                        onClick = {
+                            isLoading = true
+                            errorMessage = null
+                            authRepository.loginUser(
+                                DEMO_CUSTOMER_EMAIL,
+                                DEMO_CUSTOMER_PASSWORD
+                            ) { success, role, error ->
+                                isLoading = false
+                                if (success) {
+                                    onLoginSuccess(role ?: "CUSTOMER")
+                                } else {
+                                    errorMessage = "Demo Customer account not found in Firebase.\n" +
+                                        "Please create it in Firebase Console → Authentication:\n" +
+                                        "Email: $DEMO_CUSTOMER_EMAIL  Password: $DEMO_CUSTOMER_PASSWORD\n" +
+                                        "Then register via the Register screen with role=CUSTOMER.\n" +
+                                        "(Error: $error)"
+                                }
+                            }
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     SecondaryButton(
                         text = "Demo Garage",
-                        onClick = { onLoginSuccess("GARAGE") },
+                        onClick = {
+                            isLoading = true
+                            errorMessage = null
+                            authRepository.loginUser(
+                                DEMO_GARAGE_EMAIL,
+                                DEMO_GARAGE_PASSWORD
+                            ) { success, role, error ->
+                                isLoading = false
+                                if (success) {
+                                    onLoginSuccess(role ?: "GARAGE")
+                                } else {
+                                    errorMessage = "Demo Garage account not found in Firebase.\n" +
+                                        "Please create it in Firebase Console → Authentication:\n" +
+                                        "Email: $DEMO_GARAGE_EMAIL  Password: $DEMO_GARAGE_PASSWORD\n" +
+                                        "Then register via the Register screen with role=GARAGE.\n" +
+                                        "(Error: $error)"
+                                }
+                            }
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
