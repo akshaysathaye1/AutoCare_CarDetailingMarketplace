@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "123456789012",
+    "project_number": "1002712469431",
     "project_id": "autocare-c049",
-    "storage_bucket": "autocare-c049.appspot.com"
+    "storage_bucket": "autocare-c049.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890abcdef",
+        "mobilesdk_app_id": "1:1002712469431:android:4dc0bdb9bb7f786b4f6232",
         "android_client_info": {
           "package_name": "com.example.mad_project_akshaysathaye_c049"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDummyKeyForBuildAndTestingPurposeOnly123"
+          "current_key": "AIzaSyBZxzi5QfjL1AlVC1c9f1mFfVR_hR7-O5c"
         }
       ],
       "services": {

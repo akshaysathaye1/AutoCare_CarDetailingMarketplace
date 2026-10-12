@@ -73,7 +73,7 @@ class AuthRepository {
                         }
                         .addOnFailureListener { firestoreError ->
                             // Account created in Auth, but Firestore write had an issue
-                            onResult(true, "Account created, but profile sync noted: ${firestoreError.localizedMessage}")
+                            onResult(false, "Profile save failed: ${firestoreError.localizedMessage}")
                         }
                 }
                 .addOnFailureListener { authError ->
@@ -144,5 +144,14 @@ class AuthRepository {
         } catch (e: Exception) {
             null
         }
+    }
+
+    /**
+     * Get the authenticated Firebase UID.
+     * Returns an empty string when no active Firebase Auth session exists.
+     * Callers must guard against empty strings before writing to Firestore.
+     */
+    fun getEffectiveUserId(defaultRole: String = "CUSTOMER"): String {
+        return getCurrentUserId() ?: ""
     }
 }
