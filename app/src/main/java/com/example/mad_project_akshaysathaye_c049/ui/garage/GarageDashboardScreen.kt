@@ -269,6 +269,8 @@ fun GarageDashboardScreen(
                                     )
                                 }
                             }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            RatingComponent(rating = s.averageRating, reviewCount = s.reviewCount)
                         }
                     }
 
@@ -601,9 +603,110 @@ fun GarageDashboardScreen(
                         }
                     }
 
+                    // 6. Customer Reviews & Ratings
+                    SectionHeading(title = "Customer Reviews & Rating")
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    AppCard(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = if (s.reviewCount > 0) String.format(Locale.getDefault(), "%.1f", s.averageRating) else "New",
+                                        style = MaterialTheme.typography.headlineMedium.copy(
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    RatingComponent(rating = s.averageRating, reviewCount = s.reviewCount)
+                                }
+                                val sentiment = when {
+                                    s.reviewCount == 0 -> "Awaiting customer reviews"
+                                    s.averageRating >= 4.5 -> "🌟 Outstanding Customer Satisfaction"
+                                    s.averageRating >= 4.0 -> "⭐ Highly Rated by Customers"
+                                    s.averageRating >= 3.0 -> "👍 Good Quality Services"
+                                    else -> "⚠️ Needs Improvement"
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = sentiment,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (s.recentReviews.isEmpty()) {
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(text = "⭐", fontSize = 32.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No reviews submitted yet",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "When customers review their completed service appointments, feedback will display here.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        s.recentReviews.take(3).forEach { review ->
+                            AppCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = review.customerName.ifBlank { "Verified Customer" },
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        RatingComponent(rating = review.rating.toDouble(), reviewCount = 0)
+                                    }
+                                    if (review.createdAt > 0L) {
+                                        val revDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(review.createdAt))
+                                        Text(
+                                            text = revDate,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (review.comment.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = review.comment,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // 6. Quick Actions
+                    // 7. Quick Actions
                     SectionHeading(title = "Quick Actions")
                     Spacer(modifier = Modifier.height(10.dp))
 
