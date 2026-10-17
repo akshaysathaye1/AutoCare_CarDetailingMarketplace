@@ -158,7 +158,7 @@ fun CustomerDashboardScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "??", fontSize = 40.sp)
+                            Text(text = "⚠️", fontSize = 40.sp)
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "Could not load dashboard",
@@ -200,7 +200,7 @@ fun CustomerDashboardScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "??", fontSize = 28.sp)
+                                Text(text = "👤", fontSize = 28.sp)
                             }
                         }
                         Spacer(modifier = Modifier.width(14.dp))
@@ -219,7 +219,43 @@ fun CustomerDashboardScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // -- Onboarding State for New Customers ------------------
+                    if (s.completedServiceCount == 0 && s.upcomingBookingCount == 0 && s.registeredVehicleCount == 0) {
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "🚗 Welcome to AutoCare!",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Start by adding your vehicle profile or browse verified workshops to book your car detailing services.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    PrimaryButton(
+                                        text = "+ Add Vehicle",
+                                        onClick = onNavigateToVehicles,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    PrimaryButton(
+                                        text = "Explore Garages",
+                                        onClick = onNavigateToGarages,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
 
                     // -- 2. Stats Cards ---------------------------------------
                     SectionHeading(title = "Account Overview")
@@ -229,21 +265,21 @@ fun CustomerDashboardScreen(
                         DashStatCard(
                             label = "Services Done",
                             value = s.completedServiceCount.toString(),
-                            icon = "?",
+                            icon = "✅",
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         DashStatCard(
                             label = "Upcoming",
                             value = s.upcomingBookingCount.toString(),
-                            icon = "??",
+                            icon = "📅",
                             modifier = Modifier.weight(1f)
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth()) {
                         AppCard(modifier = Modifier.weight(1f)) {
-                            Text(text = "??", fontSize = 22.sp)
+                            Text(text = "💳", fontSize = 22.sp)
                             Spacer(modifier = Modifier.height(4.dp))
                             PriceComponent(price = s.totalSpending)
                             Text(
@@ -256,7 +292,7 @@ fun CustomerDashboardScreen(
                         DashStatCard(
                             label = "Vehicles",
                             value = s.registeredVehicleCount.toString(),
-                            icon = "??",
+                            icon = "🚗",
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -273,7 +309,7 @@ fun CustomerDashboardScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "??", fontSize = 32.sp)
+                                Text(text = "📅", fontSize = 32.sp)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "No upcoming appointments",
@@ -304,7 +340,7 @@ fun CustomerDashboardScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "View all ${s.upcomingBookings.size} upcoming bookings ?",
+                                    text = "View all ${s.upcomingBookings.size} upcoming bookings →",
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -323,7 +359,7 @@ fun CustomerDashboardScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "???", fontSize = 32.sp)
+                                Text(text = "📝", fontSize = 32.sp)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "No bookings yet",
@@ -341,7 +377,7 @@ fun CustomerDashboardScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "View all bookings ?",
+                                text = "View all bookings →",
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -359,7 +395,7 @@ fun CustomerDashboardScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "??", fontSize = 32.sp)
+                                Text(text = "🚗", fontSize = 32.sp)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "No vehicles registered",
@@ -381,7 +417,7 @@ fun CustomerDashboardScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = if (vehicle.type == "Bike") "???" else "??",
+                                        text = if (vehicle.type == "Bike") "🏍️" else "🚗",
                                         fontSize = 24.sp
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
@@ -604,7 +640,7 @@ private fun QuickActionCard(icon: String, label: String, sub: String, onClick: (
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(text = "?", style = MaterialTheme.typography.titleLarge)
+            Text(text = "→", style = MaterialTheme.typography.titleLarge)
         }
     }
 }
