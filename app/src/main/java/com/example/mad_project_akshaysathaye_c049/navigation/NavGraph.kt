@@ -10,10 +10,12 @@ import com.example.mad_project_akshaysathaye_c049.ui.auth.LoginScreen
 import com.example.mad_project_akshaysathaye_c049.ui.auth.RegisterScreen
 import com.example.mad_project_akshaysathaye_c049.ui.auth.RoleSelectionScreen
 import com.example.mad_project_akshaysathaye_c049.ui.auth.SplashScreen
+import com.example.mad_project_akshaysathaye_c049.ui.customer.CustomerDashboardScreen
 import com.example.mad_project_akshaysathaye_c049.ui.customer.CustomerHomeScreen
 import com.example.mad_project_akshaysathaye_c049.ui.customer.GarageDetailScreen
 import com.example.mad_project_akshaysathaye_c049.ui.customer.GarageListingScreen
 import com.example.mad_project_akshaysathaye_c049.ui.customer.ServiceDetailScreen
+import com.example.mad_project_akshaysathaye_c049.ui.customer.SubmitReviewScreen
 import com.example.mad_project_akshaysathaye_c049.ui.garage.GarageBookingsScreen
 import com.example.mad_project_akshaysathaye_c049.ui.garage.GarageDashboardScreen
 import com.example.mad_project_akshaysathaye_c049.ui.garage.GarageProfileScreen
@@ -116,6 +118,36 @@ fun AutoCareNavGraph(
             )
         }
 
+        // Member 4: Customer Dashboard
+        composable(Screen.CustomerDashboard.route) {
+            CustomerDashboardScreen(
+                onNavigateToBookings = {
+                    navController.navigate(Screen.CustomerBookings.route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
+                },
+                onNavigateToVehicles = {
+                    navController.navigate(Screen.MyVehicles.route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
+                },
+                onNavigateToGarages = {
+                    navController.navigate(Screen.GarageListing.route)
+                },
+                onNavigateToRoute = { route ->
+                    navController.navigate(route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
+                },
+                onLogout = {
+                    com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository().logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(Screen.GarageListing.route) {
             GarageListingScreen(
                 onNavigateToGarageDetail = { garageId ->
@@ -177,6 +209,9 @@ fun AutoCareNavGraph(
                     navController.navigate(route) {
                         popUpTo(Screen.CustomerHome.route)
                     }
+                },
+                onNavigateToReview = { bookingId ->
+                    navController.navigate(Screen.SubmitReview.createRoute(bookingId))
                 }
             )
         }
@@ -238,6 +273,25 @@ fun AutoCareNavGraph(
                 vehicleId = vehicleId,
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        // Member 4: Submit Review
+        composable(
+            route = Screen.SubmitReview.route,
+            arguments = listOf(navArgument("bookingId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+            SubmitReviewScreen(
+                bookingId = bookingId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onReviewSubmitted = {
+                    navController.navigate(Screen.CustomerBookings.route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
                 }
             )
         }
