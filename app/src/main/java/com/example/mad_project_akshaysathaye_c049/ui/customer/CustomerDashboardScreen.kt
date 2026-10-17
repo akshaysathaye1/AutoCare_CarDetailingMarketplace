@@ -49,7 +49,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * CustomerDashboardScreen � Member 4 implementation.
+ * CustomerDashboardScreen — Member 4 implementation.
  *
  * Displays real data for the authenticated customer:
  *  - Profile greeting
@@ -395,6 +395,12 @@ fun CustomerDashboardScreen(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                        val serviceCount = s.vehicleServiceCounts[vehicle.id] ?: 0
+                                        Text(
+                                            text = if (serviceCount > 0) "$serviceCount service${if (serviceCount > 1) "s" else ""} completed" else "No completed services",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (serviceCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                        )
                                     }
                                 }
                             }
@@ -406,7 +412,7 @@ fun CustomerDashboardScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "View all ${s.vehicles.size} vehicles ?",
+                                    text = "View all ${s.vehicles.size} vehicles →",
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -415,15 +421,89 @@ fun CustomerDashboardScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // -- 6. Quick Navigation Actions --------------------------
+                    // -- 6. Service History Breakdown -------------------------
+                    if (s.serviceHistory.isNotEmpty() || s.spendingByGarage.isNotEmpty()) {
+                        SectionHeading(title = "Service History Breakdown")
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        if (s.serviceHistory.isNotEmpty()) {
+                            AppCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = "Top Requested Services",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    s.serviceHistory.entries.take(4).forEach { (serviceName, count) ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = serviceName,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Surface(
+                                                shape = RoundedCornerShape(12.dp),
+                                                color = MaterialTheme.colorScheme.secondaryContainer
+                                            ) {
+                                                Text(
+                                                    text = "$count service${if (count > 1) "s" else ""}",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+
+                        if (s.spendingByGarage.isNotEmpty()) {
+                            AppCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = "Spending by Workshop",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    s.spendingByGarage.entries.take(3).forEach { (garageName, spent) ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = garageName,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            PriceComponent(price = spent)
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
+
+                    // -- 7. Quick Navigation Actions --------------------------
                     SectionHeading(title = "Quick Actions")
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    QuickActionCard(icon = "??", label = "Find Garages", sub = "Browse available workshops", onClick = onNavigateToGarages)
+                    QuickActionCard(icon = "🔧", label = "Find Garages", sub = "Browse available workshops", onClick = onNavigateToGarages)
                     Spacer(modifier = Modifier.height(8.dp))
-                    QuickActionCard(icon = "??", label = "My Bookings", sub = "View and manage appointments", onClick = onNavigateToBookings)
+                    QuickActionCard(icon = "📅", label = "My Bookings", sub = "View and manage appointments", onClick = onNavigateToBookings)
                     Spacer(modifier = Modifier.height(8.dp))
-                    QuickActionCard(icon = "??", label = "My Vehicles", sub = "Add or edit your vehicles", onClick = onNavigateToVehicles)
+                    QuickActionCard(icon = "🚗", label = "My Vehicles", sub = "Add or edit your vehicles", onClick = onNavigateToVehicles)
 
                     Spacer(modifier = Modifier.height(24.dp))
                 }
@@ -474,9 +554,9 @@ private fun MiniBookingCard(booking: Booking) {
                 )
                 val dateStr = if (booking.scheduledDate > 0L) {
                     SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(booking.scheduledDate))
-                } else "�"
+                } else "—"
                 Text(
-                    text = "$dateStr � ${booking.scheduledTime}",
+                    text = "$dateStr • ${booking.scheduledTime}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -527,4 +607,4 @@ private fun QuickActionCard(icon: String, label: String, sub: String, onClick: (
             Text(text = "?", style = MaterialTheme.typography.titleLarge)
         }
     }
-}
+}

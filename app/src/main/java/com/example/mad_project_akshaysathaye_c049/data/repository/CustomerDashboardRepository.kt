@@ -34,6 +34,23 @@ class CustomerDashboardRepository(
             val totalSpending = completedBookings.sumOf { it.totalAmount }
             val recentBookings = allBookings.sortedByDescending { it.createdAt }.take(5)
 
+            val serviceHistory = completedBookings
+                .groupBy { it.serviceName.ifBlank { "General Service" } }
+                .mapValues { it.value.size }
+                .entries.sortedByDescending { it.value }
+                .associate { it.key to it.value }
+
+            val spendingByGarage = completedBookings
+                .groupBy { it.garageName.ifBlank { "General Workshop" } }
+                .mapValues { entry -> entry.value.sumOf { it.totalAmount } }
+                .entries.sortedByDescending { it.value }
+                .associate { it.key to it.value }
+
+            val vehicleServiceCounts = completedBookings
+                .filter { it.vehicleId.isNotBlank() }
+                .groupBy { it.vehicleId }
+                .mapValues { it.value.size }
+
             Result.success(
                 CustomerDashboardStats(
                     completedServiceCount = completedServiceCount,
@@ -42,7 +59,10 @@ class CustomerDashboardRepository(
                     registeredVehicleCount = vehicles.size,
                     recentBookings = recentBookings,
                     upcomingBookings = upcomingBookings,
-                    vehicles = vehicles
+                    vehicles = vehicles,
+                    vehicleServiceCounts = vehicleServiceCounts,
+                    serviceHistory = serviceHistory,
+                    spendingByGarage = spendingByGarage
                 )
             )
         } catch (e: Exception) {
