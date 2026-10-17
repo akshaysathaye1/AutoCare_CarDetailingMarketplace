@@ -5,24 +5,14 @@ import com.example.mad_project_akshaysathaye_c049.data.model.CustomerDashboardSt
 /**
  * CustomerDashboardRepository aggregates data from BookingRepository and
  * VehicleRepository to produce a single CustomerDashboardStats snapshot.
- *
- * Design rationale: dashboard aggregation is isolated here so that the UI
- * composable remains a thin observer, and so this logic can be unit-tested
- * independently of the Compose lifecycle.
  */
 class CustomerDashboardRepository(
     private val bookingRepository: BookingRepository = BookingRepository(),
     private val vehicleRepository: VehicleRepository = VehicleRepository()
 ) {
     /**
-     * Load all data required for the Customer Dashboard in a single call.
-     *
-     * Rules:
-     *  - Completed service count: bookings with status == "completed" only.
-     *  - Total spending: sum of totalAmount for completed bookings only.
-     *  - Cancelled bookings are excluded from both counts and spending.
-     *  - Upcoming: status in {pending, confirmed, in_progress}.
-     *  - Recent bookings: the 5 most-recently-created entries of any status.
+     * Load all data required for the Customer Dashboard.
+     * Cancelled bookings are excluded from service counts and spending totals.
      */
     suspend fun getDashboardStats(userId: String): Result<CustomerDashboardStats> {
         return try {
@@ -41,13 +31,8 @@ class CustomerDashboardRepository(
             }.sortedBy { it.scheduledDate }
 
             val completedServiceCount = completedBookings.size
-            // Exclude cancelled; only count completed spending
             val totalSpending = completedBookings.sumOf { it.totalAmount }
-
-            // Most recent 5 bookings by createdAt
-            val recentBookings = allBookings
-                .sortedByDescending { it.createdAt }
-                .take(5)
+            val recentBookings = allBookings.sortedByDescending { it.createdAt }.take(5)
 
             Result.success(
                 CustomerDashboardStats(
@@ -60,6 +45,46 @@ class CustomerDashboardRepository(
                     vehicles = vehicles
                 )
             )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Returns service history as serviceName -> count, from completed bookings.
+     * Sorted by frequency descending for most-used service display.
+     */
+    suspend fun getServiceHistory(userId: String): Result<Map<String, Int>> {
+        return try {
+            val result = bookingRepository.getBookingsByCustomerId(userId)
+            if (result.isFailure) return Result.failure(result.exceptionOrNull()!!)
+            val completed = result.getOrDefault(emptyList()).filter { it.status == "completed" }
+            val grouped = completed
+                .groupBy { it.serviceName.ifBlank { "Unknown Service" } }
+                .mapValues { it.value.size }
+                .entries.sortedByDescending { it.value }
+                .associate { it.key to it.value }
+            Result.success(grouped)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Returns spending breakdown garageName -> totalSpent for completed bookings only.
+     * Sorted by spending descending for most-visited garage indicator.
+     */
+    suspend fun getSpendingByGarage(userId: String): Result<Map<String, Double>> {
+        return try {
+            val result = bookingRepository.getBookingsByCustomerId(userId)
+            if (result.isFailure) return Result.failure(result.exceptionOrNull()!!)
+            val completed = result.getOrDefault(emptyList()).filter { it.status == "completed" }
+            val grouped = completed
+                .groupBy { it.garageName.ifBlank { "Unknown Garage" } }
+                .mapValues { entry -> entry.value.sumOf { it.totalAmount } }
+                .entries.sortedByDescending { it.value }
+                .associate { it.key to it.value }
+            Result.success(grouped)
         } catch (e: Exception) {
             Result.failure(e)
         }
