@@ -25,11 +25,15 @@ data class GarageDashboardStats(
     val garage: Garage? = null,
     val pendingBookingCount: Int = 0,
     val confirmedBookingCount: Int = 0,
+    val inProgressBookingCount: Int = 0,
     val completedBookingCount: Int = 0,
     val totalBookingCount: Int = 0,
     val totalRevenue: Double = 0.0,
+    val todayRevenue: Double = 0.0,
     val averageRating: Double = 0.0,
     val reviewCount: Int = 0,
     val recentBookings: List<Booking> = emptyList(),
-    val serviceCount: Int = 0
+    val listedServices: List<Service> = emptyList(),
+    val serviceCount: Int = 0,
+    val recentReviews: List<Review> = emptyList()
 )
