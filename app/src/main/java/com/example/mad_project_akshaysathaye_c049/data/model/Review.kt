@@ -6,7 +6,7 @@ package com.example.mad_project_akshaysathaye_c049.data.model
  * Firestore collection: "reviews"
  * Key constraints enforced by ReviewValidator:
  *  - rating must be in [1, 5]
- *  - comment must be non-blank and between 10–500 characters
+ *  - comment must be non-blank and between 10â€“500 characters
  *  - bookingId, garageId, customerId must be non-empty
  */
 data class Review(
@@ -46,4 +46,4 @@ object ReviewValidator {
         }
         return null // valid
     }
-}
+}
