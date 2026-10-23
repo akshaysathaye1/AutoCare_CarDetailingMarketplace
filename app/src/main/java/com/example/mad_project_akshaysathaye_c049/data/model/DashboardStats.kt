@@ -11,7 +11,10 @@ data class CustomerDashboardStats(
     val registeredVehicleCount: Int = 0,
     val recentBookings: List<Booking> = emptyList(),
     val upcomingBookings: List<Booking> = emptyList(),
-    val vehicles: List<Vehicle> = emptyList()
+    val vehicles: List<Vehicle> = emptyList(),
+    val vehicleServiceCounts: Map<String, Int> = emptyMap(),
+    val serviceHistory: Map<String, Int> = emptyMap(),
+    val spendingByGarage: Map<String, Double> = emptyMap()
 )
 
 /**
