@@ -54,6 +54,7 @@ import com.example.mad_project_akshaysathaye_c049.ui.components.PriceComponent
 import com.example.mad_project_akshaysathaye_c049.ui.components.PrimaryButton
 import com.example.mad_project_akshaysathaye_c049.ui.components.RatingComponent
 import com.example.mad_project_akshaysathaye_c049.ui.components.SectionHeading
+import com.example.mad_project_akshaysathaye_c049.ui.components.StarRatingDisplay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -565,8 +566,8 @@ private fun ServicesTabContent(
 
 /**
  * Tab 2: Reviews Tab
- * Displays existing reviews dynamically.
- * Note: Review creation / rating submission is intentionally reserved for Member 4.
+ * Displays live reviews from Firestore with aggregate rating and individual cards.
+ * Calculates average rating directly from the loaded review list for accuracy.
  */
 @Composable
 private fun ReviewsTabContent(
@@ -740,7 +741,7 @@ private fun ReviewsTabContent(
                                         }
                                     }
 
-                                    RatingComponent(rating = review.rating.toDouble())
+                                    StarRatingDisplay(rating = review.rating.toDouble())
                                 }
 
                                 if (review.comment.isNotBlank()) {

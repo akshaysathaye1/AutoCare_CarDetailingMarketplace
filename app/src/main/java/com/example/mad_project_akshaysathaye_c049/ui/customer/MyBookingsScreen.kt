@@ -58,6 +58,7 @@ fun MyBookingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToGarages: () -> Unit,
     onNavigateToRoute: (String) -> Unit,
+    onNavigateToReview: (String) -> Unit = {},
     bookingRepository: BookingRepository = remember { BookingRepository() },
     authRepository: AuthRepository = remember { AuthRepository() }
 ) {
@@ -282,7 +283,8 @@ fun MyBookingsScreen(
                                 onCancelClick = {
                                     bookingToCancel = booking
                                     cancellationReason = ""
-                                }
+                                },
+                                onWriteReviewClick = { onNavigateToReview(booking.id) }
                             )
                         }
                     }
@@ -340,7 +342,8 @@ fun MyBookingsScreen(
 @Composable
 fun BookingCardItem(
     booking: Booking,
-    onCancelClick: () -> Unit
+    onCancelClick: () -> Unit,
+    onWriteReviewClick: () -> Unit = {}
 ) {
     AppCard(modifier = Modifier.fillMaxWidth()) {
         // Status row & ID
@@ -492,15 +495,15 @@ fun BookingCardItem(
                     )
                 }
             } else if (booking.status == "completed") {
-                Surface(
+                OutlinedButton(
+                    onClick = onWriteReviewClick,
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    modifier = Modifier.height(38.dp)
                 ) {
                     Text(
-                        text = "✓ Service Completed",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        text = "⭐ Write Review",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }

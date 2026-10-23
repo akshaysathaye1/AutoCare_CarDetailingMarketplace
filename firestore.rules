@@ -46,10 +46,22 @@ service cloud.firestore {
     }
 
     // 6. Reviews Collection
-    // Anyone can read reviews. Only customers can create them.
+    // Anyone authenticated can read reviews.
+    // Only the review author (customerId == auth.uid) may create a review.
+    // Review updates are restricted to the original author to prevent tampering.
+    // Deletion is not permitted to preserve audit integrity.
     match /reviews/{reviewId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.customerId;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.customerId
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5
+                    && request.resource.data.bookingId != ''
+                    && request.resource.data.garageId != '';
+      // Allow customer to update only their own review (e.g., edit comment/rating)
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.customerId
+                    && request.auth.uid == request.resource.data.customerId;
     }
   }
 }

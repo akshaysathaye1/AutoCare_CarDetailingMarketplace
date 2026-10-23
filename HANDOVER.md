@@ -70,9 +70,25 @@ The database is structured into 6 primary collections. Models are in `data/model
 - Implement the Customer "My Bookings" screen and Garage "Manage Bookings" screen.
 - Manage vehicle profiles (Add/edit vehicles).
 
-### **Member 4: Dashboards & Reviews**
-- Enhance the Garage Dashboard with metrics (Total Bookings, Revenue, etc.).
-- Build the review system (Allow customers to leave a rating/comment after a completed booking).
-- Display reviews dynamically on the Garage Detail screen.
+### **Member 4: Dashboards & Reviews (COMPLETED ✅)**
+- **Reviews & Ratings System:**
+  - `Review.kt`: Core data model and `ReviewValidator` enforcing rating range [1.0, 5.0], comment length [10, 500] chars, and non-blank ownership fields.
+  - `ReviewRepository.kt`: Full Firestore data-access layer for reviews, duplicate submission prevention (`checkReviewExistsForBooking`), rating aggregation (`getGarageRatingStats`), and updating denormalized rating on garage records.
+  - `RatingInputComponent.kt`: Interactive star-rating component with hover/touch states and rating labels.
+  - `SubmitReviewScreen.kt`: Comprehensive review submission flow with booking validation, error states, and automatic return to Bookings.
+  - `MyBookingsScreen.kt`: Wired "⭐ Review Service" action on completed bookings with navigation to review form.
+  - `GarageDetailScreen.kt`: Dynamic reviews list, average rating score display, and total review count.
+- **Customer Dashboard:**
+  - `CustomerDashboardRepository.kt`: Aggregates customer data from `BookingRepository` and `VehicleRepository` without hardcoded figures. Excludes cancelled bookings from service count and spending calculations. Computes service history frequency and spending by workshop.
+  - `CustomerDashboardScreen.kt`: Full Jetpack Compose dashboard with profile greeting, account overview cards, upcoming appointments, recent activity, registered vehicles with service counts, top requested services breakdown, and quick actions.
+  - Wired in `NavGraph.kt` (`Screen.CustomerDashboard`) and added to `CustomerBottomBar`.
+- **Garage Dashboard:**
+  - `GarageDashboardRepository.kt`: Scoped strictly to authenticated `ownerId` with ownership verification. Computes booking queue status (pending, confirmed, in-progress, completed), total revenue, today's earnings, and average rating.
+  - `GarageDashboardScreen.kt`: Partner workshop dashboard with profile summary, listed detailing services, live operations metrics, workshop bay/slot availability load indicator, incoming bookings queue, customer feedback review cards, and quick actions.
+- **Verification & Tests:**
+  - `ReviewValidatorTest.kt`: Unit tests verifying review bounds, comment length, and authentication constraints.
+  - `DashboardStatsUnitTest.kt`: Unit tests verifying customer spending calculations, vehicle service mappings, service history sorting, and garage queue statistics.
+  - All unit tests verified and passing via `./gradlew testDebugUnitTest`.
 
-Good luck! Let's build an amazing app. 🚗✨
+Good luck! AutoCare is fully equipped with complete end-to-end marketplace flows. 🚗✨
+
