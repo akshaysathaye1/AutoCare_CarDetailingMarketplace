@@ -148,6 +148,31 @@ fun AutoCareNavGraph(
             )
         }
 
+        composable(Screen.CustomerDashboard.route) {
+            com.example.mad_project_akshaysathaye_c049.ui.customer.CustomerDashboardScreen(
+                onNavigateToBookings = {
+                    navController.navigate(Screen.CustomerBookings.route)
+                },
+                onNavigateToVehicles = {
+                    navController.navigate(Screen.MyVehicles.route)
+                },
+                onNavigateToGarages = {
+                    navController.navigate(Screen.GarageListing.route)
+                },
+                onNavigateToRoute = { route ->
+                    navController.navigate(route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
+                },
+                onLogout = {
+                    com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository().logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(Screen.GarageListing.route) {
             GarageListingScreen(
                 onNavigateToGarageDetail = { garageId ->
