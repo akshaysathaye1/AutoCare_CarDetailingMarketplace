@@ -9,6 +9,7 @@ sealed class Screen(val route: String) {
 
     // Customer Routes
     object CustomerHome : Screen("customer_home")
+    object CustomerDashboard : Screen("customer_dashboard")
     object GarageListing : Screen("garage_listing")
     object GarageDetail : Screen("garage_detail/{garageId}") {
         fun createRoute(garageId: String) = "garage_detail/$garageId"
@@ -24,6 +25,9 @@ sealed class Screen(val route: String) {
     object AddEditVehicle : Screen("add_edit_vehicle?vehicleId={vehicleId}") {
         fun createRoute(vehicleId: String? = null) =
             if (!vehicleId.isNullOrBlank()) "add_edit_vehicle?vehicleId=$vehicleId" else "add_edit_vehicle"
+    }
+    object SubmitReview : Screen("submit_review/{bookingId}") {
+        fun createRoute(bookingId: String) = "submit_review/$bookingId"
     }
 
     // Garage Routes
