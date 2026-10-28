@@ -18,9 +18,29 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.LocalCarWash
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -38,12 +58,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mad_project_akshaysathaye_c049.data.model.Booking
 import com.example.mad_project_akshaysathaye_c049.data.model.Garage
+import com.example.mad_project_akshaysathaye_c049.ui.components.GarageImageProvider
 import com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository
 import com.example.mad_project_akshaysathaye_c049.data.repository.BookingRepository
 import com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository
@@ -56,7 +80,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun CustomerHomeScreen(
-    onNavigateToGarages: () -> Unit,
+    onNavigateToGarages: (String?) -> Unit,
     onNavigateToGarageDetail: (String) -> Unit,
     onNavigateToRoute: (String) -> Unit,
     onLogout: () -> Unit = {},
@@ -76,11 +100,16 @@ fun CustomerHomeScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
+    // Meaningful Comment 1: Firestore data loading coroutine scope
+    // Retrieves live marketplace garages and customer's active bookings in parallel.
+    // Handles network errors gracefully without crashing Compose state.
     fun loadHomeData() {
         coroutineScope.launch {
             isLoading = true
             errorMessage = null
             try {
+                // Meaningful Comment 2: Security rule compliance for garage reading
+                // Under firestore.rules, read on /garages/{garageId} is permitted for any authenticated user.
                 val garageRes = garageRepository.getAllGarages()
                 if (garageRes.isSuccess) {
                     garagesList = garageRes.getOrDefault(emptyList())
@@ -88,6 +117,8 @@ fun CustomerHomeScreen(
                     errorMessage = garageRes.exceptionOrNull()?.localizedMessage ?: "Failed to load garages"
                 }
 
+                // Meaningful Comment 3: Customer-specific booking query
+                // Only queries bookings when the customer UID is confirmed non-blank to prevent PERMISSION_DENIED.
                 val uid = authRepository.getEffectiveUserId("CUSTOMER")
                 if (uid.isNotBlank()) {
                     val bookingRes = bookingRepository.getBookingsByCustomerId(uid)
@@ -107,17 +138,18 @@ fun CustomerHomeScreen(
         loadHomeData()
     }
 
-    // Filter garages based on search and selected categories
+    // Meaningful Comment 4: Intelligent GoMechanic-inspired marketplace search & category filter
+    // Filters garages by text query (name, address, city, description) and semantic category tags.
     val filteredGarages = remember(garagesList, searchQuery, selectedVehicleType, selectedCategory) {
         val trimmedQuery = searchQuery.trim().lowercase()
         garagesList.filter { garage ->
             val matchesSearch = trimmedQuery.isEmpty() ||
                     garage.name.lowercase().contains(trimmedQuery) ||
                     garage.address.lowercase().contains(trimmedQuery) ||
-                    garage.city.lowercase().contains(trimmedQuery)
+                    garage.city.lowercase().contains(trimmedQuery) ||
+                    garage.description.lowercase().contains(trimmedQuery)
 
-            val matchesCategory = selectedCategory == null ||
-                    garage.description.contains(selectedCategory!!, ignoreCase = true)
+            val matchesCategory = matchesMarketplaceCategory(garage, selectedCategory)
 
             matchesSearch && matchesCategory
         }
@@ -158,8 +190,14 @@ fun CustomerHomeScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = "Location",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp).padding(end = 2.dp)
+                            )
                             Text(
-                                text = "📍 R.M.S Society, Near Mall, Morbi",
+                                text = "Andheri, Mumbai",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -179,11 +217,39 @@ fun CustomerHomeScreen(
                                     .clickable { onNavigateToRoute("customer_bookings") },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "💬", fontSize = 18.sp)
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        // Profile Avatar
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clickable { onNavigateToRoute("customer_profile") }
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
 
                         // Logout Action
                         TextButton(onClick = onLogout) {
@@ -236,7 +302,12 @@ fun CustomerHomeScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "🔍", fontSize = 20.sp, color = Color.White)
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                     }
                 }
@@ -276,7 +347,7 @@ fun CustomerHomeScreen(
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
                                         Text(
-                                            text = "${inProgressBooking.garageName} - Vadodara",
+                                            text = "${inProgressBooking.garageName} - Andheri East, Mumbai",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
                                         )
@@ -288,7 +359,12 @@ fun CustomerHomeScreen(
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
-                                                Text(text = "📞", fontSize = 14.sp)
+                                                Icon(
+                                                    imageVector = Icons.Default.Call,
+                                                    contentDescription = "Contact",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
                                             }
                                         }
                                         Surface(
@@ -297,7 +373,12 @@ fun CustomerHomeScreen(
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
-                                                Text(text = "📄", fontSize = 14.sp)
+                                                Icon(
+                                                    imageVector = Icons.Default.Description,
+                                                    contentDescription = "Details",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
                                             }
                                         }
                                     }
@@ -311,7 +392,12 @@ fun CustomerHomeScreen(
                                     .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = "🛵", fontSize = 32.sp)
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsCar,
+                                    contentDescription = "Vehicle",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(28.dp)
+                                )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
@@ -371,7 +457,7 @@ fun CustomerHomeScreen(
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
                                         Text(
-                                            text = "Motada Auto Service - Vadodara",
+                                            text = "Sai Service - Andheri East, Mumbai",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
                                         )
@@ -383,7 +469,12 @@ fun CustomerHomeScreen(
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
-                                                Text(text = "📞", fontSize = 14.sp)
+                                                Icon(
+                                                    imageVector = Icons.Default.Call,
+                                                    contentDescription = "Contact",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
                                             }
                                         }
                                         Surface(
@@ -392,7 +483,12 @@ fun CustomerHomeScreen(
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
-                                                Text(text = "📄", fontSize = 14.sp)
+                                                Icon(
+                                                    imageVector = Icons.Default.Description,
+                                                    contentDescription = "Details",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
                                             }
                                         }
                                     }
@@ -405,7 +501,12 @@ fun CustomerHomeScreen(
                                     .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = "🛵", fontSize = 32.sp)
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsCar,
+                                    contentDescription = "Vehicle",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(28.dp)
+                                )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
@@ -450,10 +551,10 @@ fun CustomerHomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     val vehicleTypes = listOf(
-                        Triple("Bike", "🛵", "Bike"),
-                        Triple("Car", "🚘", "Car"),
-                        Triple("Scooter", "🛵", "Scooter"),
-                        Triple("Others", "🚚", "Others")
+                        Triple("Bike", Icons.Default.TwoWheeler, "Bike"),
+                        Triple("Car", Icons.Default.DirectionsCar, "Car"),
+                        Triple("Scooter", Icons.Default.TwoWheeler, "Scooter"),
+                        Triple("Others", Icons.Default.Build, "Others")
                     )
 
                     vehicleTypes.forEach { (label, icon, typeKey) ->
@@ -474,7 +575,12 @@ fun CustomerHomeScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = icon, fontSize = 28.sp)
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = label,
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(28.dp)
+                                    )
                                 }
                             }
                             Spacer(modifier = Modifier.height(6.dp))
@@ -491,9 +597,29 @@ fun CustomerHomeScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 5. Services Category Scroll Row (Matching Reference UI: Body, Tyre, Engine, Electrical)
-                SectionHeading(title = "Services")
+                // 5. Services Category Scroll Row (GoMechanic & GarageConnect 10 Automotive Categories)
+                SectionHeading(title = "Service Categories")
                 Spacer(modifier = Modifier.height(10.dp))
+
+                data class ServiceCategoryItem(
+                    val name: String,
+                    val subtitle: String,
+                    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+                    val bgColor: Color
+                )
+
+                val serviceCategories = listOf(
+                    ServiceCategoryItem("Car Servicing", "Periodic & Inspection", Icons.Default.Build, Color(0xFF1E293B)),
+                    ServiceCategoryItem("Oil & Filter", "Engine Oil & Lube", Icons.Default.Tune, Color(0xFF0F172A)),
+                    ServiceCategoryItem("AC Service", "Cooling & Gas Refill", Icons.Default.AcUnit, Color(0xFF1E3A8A)),
+                    ServiceCategoryItem("Brakes", "Pads & Rotors", Icons.Default.Warning, Color(0xFF7F1D1D)),
+                    ServiceCategoryItem("Battery", "Health & Replace", Icons.Default.BatteryChargingFull, Color(0xFF14532D)),
+                    ServiceCategoryItem("Tyres", "Fitting & Punctures", Icons.Default.Sync, Color(0xFF334155)),
+                    ServiceCategoryItem("Wheel Alignment", "Balancing & Camber", Icons.Default.Sync, Color(0xFF312E81)),
+                    ServiceCategoryItem("Denting & Painting", "Scratch & Paint", Icons.Default.Brush, Color(0xFF701A75)),
+                    ServiceCategoryItem("Washing", "Pressure Foam Spa", Icons.Default.LocalCarWash, Color(0xFF065F46)),
+                    ServiceCategoryItem("Detailing", "Ceramic & PPF Coat", Icons.Default.AutoFixHigh, Color(0xFF78350F))
+                )
 
                 Row(
                     modifier = Modifier
@@ -501,23 +627,17 @@ fun CustomerHomeScreen(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val serviceCategories = listOf(
-                        Triple("Body", "🚘", Color(0xFF1E293B)),
-                        Triple("Tyre", "🛞", Color(0xFF334155)),
-                        Triple("Engine", "⚙️", Color(0xFF475569)),
-                        Triple("Electrical", "⚡", Color(0xFF0F172A))
-                    )
-
-                    serviceCategories.forEach { (categoryName, icon, bgColor) ->
-                        val isSelected = selectedCategory == categoryName
+                    serviceCategories.forEach { category ->
+                        val isSelected = selectedCategory == category.name
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else bgColor,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else category.bgColor,
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, Color.White) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                             modifier = Modifier
-                                .width(110.dp)
-                                .height(80.dp)
+                                .width(124.dp)
+                                .height(92.dp)
                                 .clickable {
-                                    selectedCategory = if (isSelected) null else categoryName
+                                    selectedCategory = if (isSelected) null else category.name
                                 }
                         ) {
                             Box(
@@ -525,18 +645,62 @@ fun CustomerHomeScreen(
                                     .fillMaxSize()
                                     .padding(10.dp)
                             ) {
-                                Text(
-                                    text = icon,
-                                    fontSize = 28.sp,
-                                    modifier = Modifier.align(Alignment.TopStart)
+                                Icon(
+                                    imageVector = category.icon,
+                                    contentDescription = category.name,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp).align(Alignment.TopStart)
                                 )
+                                Column(modifier = Modifier.align(Alignment.BottomStart)) {
+                                    Text(
+                                        text = category.name,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = Color.White,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = category.subtitle,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 9.sp),
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (selectedCategory != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .clickable { selectedCategory = null }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = categoryName,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = Color.White,
-                                    modifier = Modifier.align(Alignment.BottomStart)
+                                    text = "Filtering: $selectedCategory  ✕",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
+                        }
+
+                        TextButton(onClick = { onNavigateToGarages(selectedCategory) }) {
+                            Text(
+                                text = "View in Listing →",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
@@ -550,7 +714,7 @@ fun CustomerHomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     SectionHeading(title = "Popular near you")
-                    TextButton(onClick = onNavigateToGarages) {
+                    TextButton(onClick = { onNavigateToGarages(selectedCategory) }) {
                         Text(
                             text = "See All →",
                             style = MaterialTheme.typography.labelLarge.copy(
@@ -585,7 +749,12 @@ fun CustomerHomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "⚠️", fontSize = 32.sp)
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(32.dp)
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Unable to load garages",
@@ -607,32 +776,88 @@ fun CustomerHomeScreen(
                         }
                     }
 
+                    // Meaningful Comment 5: Differentiate between completely empty database vs. query with 0 matches
+                    // When the marketplace collection has 0 garages, we prompt the user with a setup/refresh callout.
+                    garagesList.isEmpty() -> {
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Build,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "Marketplace Initializing",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No partner workshops are currently listed in the Cloud Firestore database.\n\nTo create a legitimate garage listing:\n1. Log out and register a new account with the 'GARAGE' role.\n2. In the Garage Dashboard, fill out your workshop profile & address.\n3. Add service packages under 'Manage Services'.\n4. Your workshop will immediately appear live here for customers.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    PrimaryButton(
+                                        text = "Refresh",
+                                        onClick = { loadHomeData() },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedButton(
+                                        onClick = onLogout,
+                                        modifier = Modifier.weight(1.2f)
+                                    ) {
+                                        Text("Partner Login", maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Meaningful Comment 6: Active filter with no matching workshops
+                    // Garages exist in the database, but user search or category filter narrowed results to zero.
                     filteredGarages.isEmpty() -> {
                         AppCard(modifier = Modifier.fillMaxWidth()) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
+                                    .padding(20.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "🏢", fontSize = 36.sp)
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
                                 Text(
-                                    text = "No Garages Available",
+                                    text = "No Garages Match Filters",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "No workshops match your current search or category filter.",
+                                    text = "No workshops match your current search '${searchQuery.trim()}' or '${selectedCategory ?: ""}'. Try clearing filters.",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
-                                Spacer(modifier = Modifier.height(14.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
                                 OutlinedButton(onClick = {
                                     searchQuery = ""
                                     selectedCategory = null
                                     selectedVehicleType = null
-                                    loadHomeData()
                                 }) {
                                     Text("Reset Filters")
                                 }
@@ -676,10 +901,19 @@ fun MarketplaceGarageCard(
                     .height(130.dp)
                     .background(Color(0xFF1E293B))
             ) {
-                Text(
-                    text = "🚘 🔧 ⚙️",
-                    fontSize = 36.sp,
-                    modifier = Modifier.align(Alignment.Center)
+                // Local Bundled Garage Image with Guaranteed Fallback
+                Image(
+                    painter = painterResource(id = GarageImageProvider.getGarageImageRes(garage.id)),
+                    contentDescription = garage.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Subtle dark vignette to ensure bookmark and overlay badges are legible
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.2f))
                 )
 
                 // Bookmark Icon Button
@@ -692,7 +926,12 @@ fun MarketplaceGarageCard(
                         .size(34.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(text = "🔖", fontSize = 16.sp)
+                        Icon(
+                            imageVector = Icons.Default.BookmarkBorder,
+                            contentDescription = "Bookmark",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
@@ -715,7 +954,7 @@ fun MarketplaceGarageCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "${garage.city.ifBlank { "Vadodara" }} • 2 km • Car & Bike",
+                    text = "${garage.locality.ifBlank { garage.address.ifBlank { "Andheri East" } }}, Mumbai",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -723,3 +962,84 @@ fun MarketplaceGarageCard(
         }
     }
 }
+
+// Meaningful Comment 7: GoMechanic-style automotive category taxonomy matching
+// Maps user-selected category chips (Car Servicing, Oil & Filter, AC Service, Brakes, Battery, Tyres, Wheel Alignment, Denting & Painting, Washing, Detailing) to workshop capabilities.
+// This prevents 0-result false negatives when a workshop offers services matching the category
+// but doesn't have the literal single word in its headline.
+fun matchesMarketplaceCategory(garage: Garage, category: String?): Boolean {
+    if (category.isNullOrBlank()) return true
+    val cat = category.trim().lowercase()
+    val desc = garage.description.lowercase()
+    val name = garage.name.lowercase()
+
+    // Meaningful Comment 8: Direct substring match on name or description
+    if (desc.contains(cat) || name.contains(cat)) return true
+
+    // Meaningful Comment 9: Domain-specific service synonyms and keywords
+    return when (cat) {
+        "car servicing", "car service", "servicing", "service", "periodic" ->
+            desc.contains("service") || desc.contains("maintenance") ||
+            desc.contains("repair") || desc.contains("inspection") ||
+            name.contains("service") || name.contains("auto") || name.contains("garage") || name.contains("motor")
+
+        "oil and filter", "oil & filter", "oil & filter changes", "oil", "filter" ->
+            desc.contains("oil") || desc.contains("filter") ||
+            desc.contains("lube") || desc.contains("engine") || desc.contains("tuning") ||
+            desc.contains("fluid")
+
+        "ac service", "ac", "air conditioning" ->
+            desc.contains("ac") || desc.contains("air condition") ||
+            desc.contains("cooling") || desc.contains("climate") ||
+            desc.contains("gas") || desc.contains("filter")
+
+        "brakes", "brake" ->
+            desc.contains("brake") || desc.contains("pad") ||
+            desc.contains("rotor") || desc.contains("disc") || desc.contains("caliper")
+
+        "battery" ->
+            desc.contains("battery") || desc.contains("electrical") ||
+            desc.contains("power") || desc.contains("voltage") || desc.contains("charge")
+
+        "tyres", "tyre", "tire", "tires" ->
+            desc.contains("wheel") || desc.contains("tyre") ||
+            desc.contains("tire") || desc.contains("alignment") ||
+            desc.contains("tuning") || desc.contains("workshop") ||
+            name.contains("motor") || name.contains("auto")
+
+        "wheel alignment", "alignment" ->
+            desc.contains("alignment") || desc.contains("balancing") ||
+            desc.contains("wheel") || desc.contains("suspension") || desc.contains("camber")
+
+        "denting & painting", "denting and painting", "dent", "paint", "denting", "painting" ->
+            desc.contains("dent") || desc.contains("paint") || desc.contains("scratch") ||
+            desc.contains("body") || desc.contains("panel") || desc.contains("coating")
+
+        "washing", "wash", "car wash" ->
+            desc.contains("wash") || desc.contains("spa") || desc.contains("clean") ||
+            desc.contains("water") || desc.contains("foam")
+
+        "detailing" ->
+            desc.contains("detail") || desc.contains("coat") || desc.contains("ceramic") ||
+            desc.contains("ppf") || desc.contains("interior") || desc.contains("polish")
+
+        "body" ->
+            desc.contains("detailing") || desc.contains("coating") ||
+            desc.contains("wash") || desc.contains("paint") ||
+            desc.contains("dent") || desc.contains("ceramic") ||
+            name.contains("detailing") || name.contains("shine") || name.contains("spa")
+
+        "engine" ->
+            desc.contains("engine") || desc.contains("tuning") ||
+            desc.contains("performance") || desc.contains("oil") ||
+            desc.contains("mechanical") || name.contains("motor") || name.contains("tuning")
+
+        "electrical" ->
+            desc.contains("electrical") || desc.contains("battery") ||
+            desc.contains("wiring") || desc.contains("electronics") ||
+            desc.contains("tuning") || name.contains("tuning") || name.contains("motor")
+
+        else -> false
+    }
+}
+

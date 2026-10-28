@@ -10,7 +10,11 @@ sealed class Screen(val route: String) {
     // Customer Routes
     object CustomerHome : Screen("customer_home")
     object CustomerDashboard : Screen("customer_dashboard")
-    object GarageListing : Screen("garage_listing")
+    object GarageListing : Screen("garage_listing") {
+        const val routeWithArgs = "garage_listing?category={category}"
+        fun createRoute(category: String? = null) =
+            if (!category.isNullOrBlank()) "garage_listing?category=$category" else "garage_listing"
+    }
     object GarageDetail : Screen("garage_detail/{garageId}") {
         fun createRoute(garageId: String) = "garage_detail/$garageId"
     }
@@ -29,6 +33,7 @@ sealed class Screen(val route: String) {
     object SubmitReview : Screen("submit_review/{bookingId}") {
         fun createRoute(bookingId: String) = "submit_review/$bookingId"
     }
+    object CustomerProfile : Screen("customer_profile")
 
     // Garage Routes
     object GarageDashboard : Screen("garage_dashboard")

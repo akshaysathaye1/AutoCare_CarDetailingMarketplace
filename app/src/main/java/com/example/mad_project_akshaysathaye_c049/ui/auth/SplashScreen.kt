@@ -7,7 +7,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -44,10 +48,11 @@ fun SplashScreen(
                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
                 modifier = Modifier.padding(bottom = 12.dp)
             ) {
-                Text(
-                    text = "🚗",
-                    fontSize = 48.sp,
-                    modifier = Modifier.padding(16.dp)
+                Icon(
+                    imageVector = Icons.Default.DirectionsCar,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(64.dp).padding(12.dp)
                 )
             }
             Text(

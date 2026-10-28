@@ -34,8 +34,30 @@ fun AutoCareNavGraph(
         composable(Screen.Splash.route) {
             SplashScreen(
                 onSplashFinished = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    val authRepo = com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository()
+                    if (authRepo.isUserLoggedIn()) {
+                        authRepo.getUserProfile { user, _ ->
+                            if (user != null) {
+                                if (user.role == "GARAGE") {
+                                    navController.navigate(Screen.GarageDashboard.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
+                                } else {
+                                    navController.navigate(Screen.CustomerHome.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
+                                }
+                            } else {
+                                // Session is invalid or profile not found; prompt login
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Splash.route) { inclusive = true }
+                                }
+                            }
+                        }
+                    } else {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
                     }
                 }
             )
@@ -98,8 +120,8 @@ fun AutoCareNavGraph(
         // --- Customer Flow ---
         composable(Screen.CustomerHome.route) {
             CustomerHomeScreen(
-                onNavigateToGarages = {
-                    navController.navigate(Screen.GarageListing.route)
+                onNavigateToGarages = { category ->
+                    navController.navigate(Screen.GarageListing.createRoute(category))
                 },
                 onNavigateToGarageDetail = { garageId ->
                     navController.navigate(Screen.GarageDetail.createRoute(garageId))
@@ -148,33 +170,19 @@ fun AutoCareNavGraph(
             )
         }
 
-        composable(Screen.CustomerDashboard.route) {
-            com.example.mad_project_akshaysathaye_c049.ui.customer.CustomerDashboardScreen(
-                onNavigateToBookings = {
-                    navController.navigate(Screen.CustomerBookings.route)
-                },
-                onNavigateToVehicles = {
-                    navController.navigate(Screen.MyVehicles.route)
-                },
-                onNavigateToGarages = {
-                    navController.navigate(Screen.GarageListing.route)
-                },
-                onNavigateToRoute = { route ->
-                    navController.navigate(route) {
-                        popUpTo(Screen.CustomerHome.route)
-                    }
-                },
-                onLogout = {
-                    com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository().logout()
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
+        composable(
+            route = Screen.GarageListing.routeWithArgs,
+            arguments = listOf(
+                navArgument("category") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 }
             )
-        }
-
-        composable(Screen.GarageListing.route) {
+        ) { backStackEntry ->
+            val initialCategory = backStackEntry.arguments?.getString("category")
             GarageListingScreen(
+                initialCategory = initialCategory,
                 onNavigateToGarageDetail = { garageId ->
                     navController.navigate(Screen.GarageDetail.createRoute(garageId))
                 },
@@ -201,6 +209,9 @@ fun AutoCareNavGraph(
                 },
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToBookService = { gId, sId ->
+                    navController.navigate(Screen.BookService.createRoute(gId, sId))
                 }
             )
         }
@@ -321,6 +332,34 @@ fun AutoCareNavGraph(
             )
         }
 
+        composable(Screen.CustomerProfile.route) {
+            com.example.mad_project_akshaysathaye_c049.ui.customer.CustomerProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToRoute = { route ->
+                    navController.navigate(route) {
+                        popUpTo(Screen.CustomerHome.route)
+                    }
+                },
+                onNavigateToVehicles = {
+                    navController.navigate(Screen.MyVehicles.route)
+                },
+                onNavigateToBookings = {
+                    navController.navigate(Screen.CustomerBookings.route)
+                },
+                onSwitchRole = {
+                    navController.navigate(Screen.RoleSelection.route)
+                },
+                onLogout = {
+                    com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository().logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         // --- Garage Flow ---
         composable(Screen.GarageDashboard.route) {
             GarageDashboardScreen(
@@ -355,6 +394,15 @@ fun AutoCareNavGraph(
                 onNavigateToRoute = { route ->
                     navController.navigate(route) {
                         popUpTo(Screen.GarageDashboard.route)
+                    }
+                },
+                onSwitchRole = {
+                    navController.navigate(Screen.RoleSelection.route)
+                },
+                onLogout = {
+                    com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository().logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

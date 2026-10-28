@@ -14,6 +14,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -154,6 +165,7 @@ fun RegisterScreen(
                     }
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 isLoading = false
                 errorMessage = sanitizeRegisterError(e.localizedMessage)
             } finally {
@@ -177,15 +189,16 @@ fun RegisterScreen(
         ) {
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Branding Header
+            // Branding Header with standard DirectionsCar icon
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier.padding(bottom = 8.dp)
             ) {
-                Text(
-                    text = "🚗",
-                    fontSize = 32.sp,
+                Icon(
+                    imageVector = Icons.Default.DirectionsCar,
+                    contentDescription = "AutoCare Logo",
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(14.dp)
                 )
             }
@@ -204,7 +217,7 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Error Message Banner
+            // Error Message Banner with Warning icon
             if (errorMessage != null) {
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
@@ -217,8 +230,12 @@ fun RegisterScreen(
                         modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "⚠", fontSize = 18.sp)
-                        Spacer(modifier = Modifier.padding(horizontal = 4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
                         Text(
                             text = errorMessage ?: "",
                             color = MaterialTheme.colorScheme.onErrorContainer,
@@ -254,7 +271,13 @@ fun RegisterScreen(
                         isError = nameError != null,
                         errorMessage = nameError,
                         enabled = !isLoading,
-                        leadingIcon = { Text("👤", fontSize = 16.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Name",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Next
@@ -279,7 +302,13 @@ fun RegisterScreen(
                         isError = emailError != null,
                         errorMessage = emailError,
                         enabled = !isLoading,
-                        leadingIcon = { Text("✉️", fontSize = 16.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = "Email",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
@@ -304,7 +333,13 @@ fun RegisterScreen(
                         isError = phoneError != null,
                         errorMessage = phoneError,
                         enabled = !isLoading,
-                        leadingIcon = { Text("📞", fontSize = 16.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = "Phone",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Phone,
                             imeAction = ImeAction.Next
@@ -330,17 +365,21 @@ fun RegisterScreen(
                         errorMessage = passwordError,
                         enabled = !isLoading,
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        leadingIcon = { Text("🔒", fontSize = 16.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Password",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         trailingIcon = {
-                            Text(
-                                text = if (passwordVisible) "👁" else "🙈",
-                                fontSize = 16.sp,
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
                                     .clickable { passwordVisible = !passwordVisible }
                                     .padding(8.dp)
-                                    .semantics {
-                                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
-                                    }
                             )
                         },
                         keyboardOptions = KeyboardOptions(
@@ -368,17 +407,21 @@ fun RegisterScreen(
                         errorMessage = confirmPasswordError,
                         enabled = !isLoading,
                         visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        leadingIcon = { Text("🔒", fontSize = 16.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Confirm Password",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         trailingIcon = {
-                            Text(
-                                text = if (confirmPasswordVisible) "👁" else "🙈",
-                                fontSize = 16.sp,
+                            Icon(
+                                imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
                                     .clickable { confirmPasswordVisible = !confirmPasswordVisible }
                                     .padding(8.dp)
-                                    .semantics {
-                                        contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password"
-                                    }
                             )
                         },
                         keyboardOptions = KeyboardOptions(
@@ -415,7 +458,12 @@ fun RegisterScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "🚗", fontSize = 28.sp)
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsCar,
+                                    contentDescription = null,
+                                    tint = if (selectedRole == "CUSTOMER") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "Customer",
@@ -444,7 +492,12 @@ fun RegisterScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "🔧", fontSize = 28.sp)
+                                Icon(
+                                    imageVector = Icons.Default.Build,
+                                    contentDescription = null,
+                                    tint = if (selectedRole == "GARAGE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "Garage Owner",
@@ -518,22 +571,31 @@ fun RegisterScreen(
 }
 
 /**
- * Sanitize registration error messages to prevent exposing technical traces.
+ * Sanitize registration error messages to present clear, user-friendly diagnostics
+ * without misleading network claims or exposing internal stack traces.
  */
-private fun sanitizeRegisterError(rawError: String?): String {
+internal fun sanitizeRegisterError(rawError: String?): String {
     if (rawError.isNullOrBlank()) return "Registration failed. Please check your details and try again."
     val lower = rawError.lowercase()
     return when {
-        lower.contains("email-already-in-use") || lower.contains("already exists") ->
+        lower.contains("email-already-in-use") || lower.contains("already exists") || lower.contains("already in use") ->
             "An account with this email address already exists. Please sign in instead."
-        lower.contains("weak-password") ->
-            "The password is too weak. Please use at least 6 characters with a combination of letters and numbers."
-        lower.contains("invalid-email") ->
+        lower.contains("weak-password") || lower.contains("weak password") || lower.contains("password is too weak") ->
+            "The password is too weak. Please use at least 6 characters."
+        lower.contains("invalid-email") || lower.contains("invalid email") || lower.contains("enter a valid email") ->
             "Please provide a valid email address."
-        lower.contains("network") || lower.contains("timeout") || lower.contains("unreachable") ->
+        lower.contains("cloud firestore") || lower.contains("firestore") ->
+            rawError.substringBefore("\n").trim()
+        lower.contains("permission denied") || lower.contains("database access") ->
+            rawError.substringBefore("\n").trim()
+        lower.contains("profile setup timed out") || lower.contains("profile save failed") ->
+            rawError.substringBefore("\n").trim()
+        lower.contains("firebasenetworkexception") || lower.contains("check your internet connection") ->
             "Network connection error. Please check your internet connection."
-        lower.contains("profile save failed") || lower.contains("firestore") ->
-            "Account created, but profile setup failed. Please contact support."
+        lower.contains("timed out") || lower.contains("timeout") ->
+            rawError.substringBefore("\n").trim()
+        lower.contains("network") || lower.contains("unreachable") ->
+            "Network connection error. Please check your internet connection."
         else ->
             rawError.substringBefore("\n").substringBefore("Exception").trim().ifBlank {
                 "Unable to complete registration. Please try again."

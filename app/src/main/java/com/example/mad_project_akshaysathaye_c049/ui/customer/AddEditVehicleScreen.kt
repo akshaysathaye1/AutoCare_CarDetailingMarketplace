@@ -79,16 +79,22 @@ fun AddEditVehicleScreen(
     LaunchedEffect(vehicleId) {
         if (isEditMode) {
             isLoading = true
+            val currentUserId = authRepository.getEffectiveUserId("CUSTOMER")
             val result = vehicleRepository.getVehicleById(vehicleId!!)
             if (result.isSuccess) {
                 val v = result.getOrNull()
                 if (v != null) {
-                    make = v.make
-                    model = v.model
-                    year = v.year
-                    licensePlate = v.licensePlate
-                    type = if (v.type.isNotBlank()) v.type else "Car"
-                    color = v.color
+                    // Customer ownership check: customers can only access and modify their own vehicles
+                    if (currentUserId.isNotBlank() && v.ownerId.isNotBlank() && v.ownerId != currentUserId) {
+                        generalError = "Access denied: You can only view and modify your own registered vehicles."
+                    } else {
+                        make = v.make
+                        model = v.model
+                        year = v.year
+                        licensePlate = v.licensePlate
+                        type = if (v.type.isNotBlank()) v.type else "Car"
+                        color = v.color
+                    }
                 } else {
                     generalError = "Vehicle record could not be found."
                 }
@@ -102,14 +108,19 @@ fun AddEditVehicleScreen(
     fun validate(): Boolean {
         var isValid = true
 
-        if (make.trim().isBlank()) {
+        val trimmedMake = make.trim()
+        if (trimmedMake.isBlank()) {
             makeError = "Make / Brand is required (e.g. Honda, Hyundai, Tata)"
+            isValid = false
+        } else if (trimmedMake.length < 2) {
+            makeError = "Make must be at least 2 characters long"
             isValid = false
         } else {
             makeError = null
         }
 
-        if (model.trim().isBlank()) {
+        val trimmedModel = model.trim()
+        if (trimmedModel.isBlank()) {
             modelError = "Model name is required (e.g. City, Creta, Harrier)"
             isValid = false
         } else {
@@ -120,8 +131,8 @@ fun AddEditVehicleScreen(
         if (cleanedPlate.isBlank()) {
             licenseError = "Registration number is required"
             isValid = false
-        } else if (cleanedPlate.length < 4) {
-            licenseError = "Enter a valid registration number (e.g. KA 01 MJ 1234)"
+        } else if (!VehicleRepository.isValidRegistrationNumber(cleanedPlate)) {
+            licenseError = "Enter a valid registration number (e.g. MH 12 AB 1234 or KA 01 MJ 1234)"
             isValid = false
         } else {
             licenseError = null
@@ -144,11 +155,16 @@ fun AddEditVehicleScreen(
     }
 
     fun saveVehicle() {
+        if (isSaving) return
         if (!validate()) return
 
         val ownerId = authRepository.getEffectiveUserId("CUSTOMER")
         if (ownerId.isBlank()) {
-            generalError = "You must be signed in to save a vehicle.\nPlease go back and use Sign In / Register."
+            generalError = "You must be signed in as a customer to save a vehicle.\nPlease log in or register."
+            return
+        }
+
+        if (generalError != null && generalError!!.contains("Access denied", ignoreCase = true)) {
             return
         }
 
@@ -168,7 +184,7 @@ fun AddEditVehicleScreen(
                 )
 
                 val result = if (isEditMode) {
-                    vehicleRepository.updateVehicle(vehicleObj)
+                    vehicleRepository.updateVehicle(vehicleObj, ownerId)
                 } else {
                     vehicleRepository.addVehicle(vehicleObj).map { Unit }
                 }
@@ -178,7 +194,15 @@ fun AddEditVehicleScreen(
                     snackbarHostState.showSnackbar(msg)
                     onNavigateBack()
                 } else {
-                    generalError = result.exceptionOrNull()?.localizedMessage ?: "Failed to save vehicle"
+                    val ex = result.exceptionOrNull()
+                    val rawMsg = ex?.localizedMessage ?: ""
+                    generalError = when {
+                        rawMsg.contains("PERMISSION_DENIED", ignoreCase = true) || rawMsg.contains("permission", ignoreCase = true) ->
+                            "Database permission denied. You can only save vehicles for your own account."
+                        rawMsg.contains("network", ignoreCase = true) || rawMsg.contains("unavailable", ignoreCase = true) ->
+                            "Network error. Please check your internet connection."
+                        else -> ex?.localizedMessage ?: "Failed to save vehicle"
+                    }
                 }
             } finally {
                 isSaving = false

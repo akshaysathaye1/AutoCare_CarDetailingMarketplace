@@ -108,6 +108,13 @@ fun CustomerDashboardScreen(
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
+                    TextButton(onClick = { onNavigateToRoute("customer_profile") }) {
+                        Text(
+                            text = "Profile",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                     TextButton(onClick = onLogout) {
                         Text(
                             text = "Logout",

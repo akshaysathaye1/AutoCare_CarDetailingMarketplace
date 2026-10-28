@@ -1,7 +1,12 @@
 package com.example.mad_project_akshaysathaye_c049.ui.customer
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.mad_project_akshaysathaye_c049.ui.components.GarageImageProvider
+import com.example.mad_project_akshaysathaye_c049.ui.components.GarageImageType
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +21,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -56,6 +72,7 @@ fun GarageDetailScreen(
     garageId: String,
     onNavigateToServiceDetail: (String) -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToBookService: (String, String) -> Unit = { _, _ -> },
     garageRepository: GarageRepository = remember { GarageRepository() },
     serviceRepository: ServiceRepository = remember { ServiceRepository() },
     reviewRepository: ReviewRepository = remember { ReviewRepository() }
@@ -120,13 +137,27 @@ fun GarageDetailScreen(
     Scaffold(
         topBar = {
             AutoCareTopBar(
-                title = "Garaje Details",
+                title = "Garage Details",
                 canNavigateBack = true,
                 onNavigateBack = onNavigateBack,
                 actions = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "🔗", fontSize = 18.sp, modifier = Modifier.padding(end = 12.dp))
-                        Text(text = "🔖", fontSize = 18.sp, modifier = Modifier.padding(end = 8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.BookmarkBorder,
+                            contentDescription = "Bookmark",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             )
@@ -156,15 +187,12 @@ fun GarageDetailScreen(
                             modifier = Modifier.weight(1f)
                         )
 
-                        // Book Service Action Button
+                        // Book Service Action Button: direct handoff to booking flow
                         PrimaryButton(
                             text = "Book Service",
                             onClick = {
-                                if (firstService != null) {
-                                    onNavigateToServiceDetail(firstService.id)
-                                } else {
-                                    /* Navigates to general service flow */
-                                }
+                                val sId = firstService?.id ?: ""
+                                onNavigateToBookService(currentGarage.id, sId)
                             },
                             modifier = Modifier.weight(1.5f)
                         )
@@ -202,7 +230,12 @@ fun GarageDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "⚠️", fontSize = 36.sp)
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(36.dp)
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Unable to load garage",
@@ -249,18 +282,49 @@ fun GarageDetailScreen(
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                     ) {
-                        // 1. Large Hero Image Banner (Matching Left Phone in Reference UI)
+                        // 1. Large Hero Image Banner
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(210.dp)
                                 .background(Color(0xFF1E293B))
                         ) {
-                            Text(
-                                text = "🚘 🔧 🏎️",
-                                fontSize = 56.sp,
-                                modifier = Modifier.align(Alignment.Center)
+                            // Local Bundled Garage Image with Guaranteed Fallback
+                            Image(
+                                painter = painterResource(id = GarageImageProvider.getGarageImageRes(currentGarage.id)),
+                                contentDescription = currentGarage.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
+
+                            // Subtle bottom gradient
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.25f))
+                            )
+
+                            // Visual Tag for Legal Transparency
+                            val imgMeta = GarageImageProvider.getMetadata(currentGarage.id)
+                            val tagText = when (imgMeta.imageType) {
+                                GarageImageType.AI_GENERATED -> "AI Workshop Illustration"
+                                GarageImageType.CURATED_WORKSHOP -> "Curated Workshop Photo"
+                                GarageImageType.DEFAULT_FALLBACK -> "Partner Workshop"
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.Black.copy(alpha = 0.65f),
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = tagText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
 
                         // 2. Garage Header Details Card (Matching Left Phone in Reference UI)
@@ -283,15 +347,22 @@ fun GarageDetailScreen(
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = currentGarage.address.ifBlank { "Harish Nagar, Karelibagh, Vadodara, Gujarat 390001" },
+                                            text = currentGarage.address.ifBlank { "Andheri East, Mumbai, Maharashtra 400069" },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
 
+                                    val dynamicRating = if (reviews.isNotEmpty()) {
+                                        Math.round((reviews.sumOf { it.rating.toDouble() } / reviews.size) * 10.0) / 10.0
+                                    } else {
+                                        currentGarage.rating
+                                    }
+                                    val dynamicReviewCount = if (reviews.isNotEmpty()) reviews.size else currentGarage.reviewCount
+
                                     RatingComponent(
-                                        rating = currentGarage.rating,
-                                        reviewCount = if (reviews.isNotEmpty()) reviews.size else currentGarage.reviewCount
+                                        rating = dynamicRating,
+                                        reviewCount = dynamicReviewCount
                                     )
                                 }
 
@@ -299,34 +370,66 @@ fun GarageDetailScreen(
 
                                 // Tags Row (Distance, Vehicle Types, Operating Hours, Pick & Drop)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "📍 1.2 kms",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.LocationOn,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp).padding(end = 2.dp)
+                                        )
+                                        Text(
+                                            text = if (currentGarage.locality.isNotBlank()) "${currentGarage.locality}, Mumbai" else "Andheri, Mumbai",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.width(16.dp))
-                                    Text(
-                                        text = "🚗 Car, Bike, Scooter",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.DirectionsCar,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                                        )
+                                        Text(
+                                            text = "Car & Bike",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "🕒 ${currentGarage.operatingHours.ifBlank { "9am - 8pm" }}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                                        )
+                                        Text(
+                                            text = currentGarage.operatingHours.ifBlank { "9:00 AM - 8:00 PM" },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.width(16.dp))
-                                    Text(
-                                        text = "🚚 Pick & Drop available",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.LocalShipping,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                                        )
+                                        Text(
+                                            text = "Pick & Drop",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -366,10 +469,12 @@ fun GarageDetailScreen(
                         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                             when (selectedTabIndex) {
                                 0 -> ServicesTabSection(
+                                    garageId = currentGarage.id,
                                     services = services,
                                     isLoading = isServicesLoading,
                                     errorMessage = servicesError,
                                     onNavigateToServiceDetail = onNavigateToServiceDetail,
+                                    onNavigateToBookService = onNavigateToBookService,
                                     onRetry = { loadData() }
                                 )
 
@@ -396,10 +501,12 @@ fun GarageDetailScreen(
 
 @Composable
 private fun ServicesTabSection(
+    garageId: String,
     services: List<Service>,
     isLoading: Boolean,
     errorMessage: String?,
     onNavigateToServiceDetail: (String) -> Unit,
+    onNavigateToBookService: (String, String) -> Unit,
     onRetry: () -> Unit
 ) {
     when {
@@ -424,7 +531,12 @@ private fun ServicesTabSection(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "⚠️", fontSize = 32.sp)
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(32.dp)
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Failed to load services", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                     Spacer(modifier = Modifier.height(4.dp))
@@ -443,7 +555,12 @@ private fun ServicesTabSection(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "🛠️", fontSize = 36.sp)
+                    Icon(
+                        imageVector = Icons.Default.Build,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("No Services Listed", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                     Spacer(modifier = Modifier.height(4.dp))
@@ -463,30 +580,105 @@ private fun ServicesTabSection(
                         onClick = { onNavigateToServiceDetail(service.id) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = service.name,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                )
-                                if (service.description.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = service.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 2
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = service.name,
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+                                        if (service.category.isNotBlank()) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer
+                                            ) {
+                                                Text(
+                                                    text = service.category,
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    if (service.description.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = service.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+                                PriceComponent(price = service.price)
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val durationText = if (service.durationMinutes > 0) {
+                                    if (service.durationMinutes >= 60 && service.durationMinutes % 60 == 0) {
+                                        "${service.durationMinutes / 60} hr${if (service.durationMinutes / 60 > 1) "s" else ""}"
+                                    } else {
+                                        "${service.durationMinutes} mins"
+                                    }
+                                } else {
+                                    "60 mins"
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(14.dp).padding(end = 4.dp)
+                                        )
+                                        Text(
+                                            text = durationText,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(
+                                        onClick = { onNavigateToServiceDetail(service.id) },
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        modifier = Modifier.height(36.dp)
+                                    ) {
+                                        Text("Details", style = MaterialTheme.typography.labelSmall)
+                                    }
+
+                                    PrimaryButton(
+                                        text = "Book Now",
+                                        onClick = { onNavigateToBookService(garageId, service.id) },
+                                        modifier = Modifier.height(36.dp).width(105.dp)
                                     )
                                 }
                             }
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            PriceComponent(price = service.price)
                         }
                     }
                 }
@@ -531,7 +723,12 @@ private fun ReviewsTabSection(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "⚠️", fontSize = 32.sp)
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(32.dp)
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Failed to load reviews", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                     Spacer(modifier = Modifier.height(4.dp))
@@ -543,6 +740,13 @@ private fun ReviewsTabSection(
         }
 
         else -> {
+            val dynamicRating = if (reviews.isNotEmpty()) {
+                Math.round((reviews.sumOf { it.rating.toDouble() } / reviews.size) * 10.0) / 10.0
+            } else {
+                garageRating
+            }
+            val dynamicReviewCount = if (reviews.isNotEmpty()) reviews.size else reviewCount
+
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -554,11 +758,11 @@ private fun ReviewsTabSection(
                             modifier = Modifier.padding(end = 16.dp)
                         ) {
                             Text(
-                                text = String.format(Locale.getDefault(), "%.1f", garageRating),
+                                text = String.format(Locale.getDefault(), "%.1f", dynamicRating),
                                 style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            RatingComponent(rating = garageRating)
+                            RatingComponent(rating = dynamicRating)
                         }
 
                         Column(modifier = Modifier.weight(1f)) {
@@ -568,7 +772,7 @@ private fun ReviewsTabSection(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Based on $reviewCount completed service appointments.",
+                                text = "Based on $dynamicReviewCount verified service reviews.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

@@ -96,13 +96,48 @@ class DashboardStatsUnitTest {
         val confirmed = bookings.count { it.status == "confirmed" }
         val inProgress = bookings.count { it.status == "in_progress" }
         val completed = bookings.count { it.status == "completed" }
+        val cancelled = bookings.count { it.status == "cancelled" }
         val revenue = bookings.filter { it.status == "completed" }.sumOf { it.totalAmount }
 
         assertEquals(1, pending)
         assertEquals(1, confirmed)
         assertEquals(1, inProgress)
         assertEquals(2, completed)
+        assertEquals(1, cancelled)
         assertEquals(6, bookings.size)
         assertEquals(4000.0, revenue, 0.001)
+    }
+
+    @Test
+    fun notificationHelper_formatsStatusUpdatesCorrectly() {
+        val helper = com.example.mad_project_akshaysathaye_c049.data.notifications.NotificationHelper
+
+        // Confirmed notification
+        val confirmed = helper.formatNotificationContent("confirmed", "Max Detailing", "Ceramic Coating", "Honda City")
+        org.junit.Assert.assertNotNull(confirmed)
+        assertTrue(confirmed!!.first.contains("Confirmed"))
+        assertTrue(confirmed.second.contains("Max Detailing"))
+        assertTrue(confirmed.second.contains("Ceramic Coating"))
+
+        // In Progress notification
+        val inProgress = helper.formatNotificationContent("in_progress", "Max Detailing", "Foam Wash", "Tata Nexon")
+        org.junit.Assert.assertNotNull(inProgress)
+        assertTrue(inProgress!!.first.contains("Started") || inProgress.first.contains("Underway"))
+        assertTrue(inProgress.second.contains("Tata Nexon"))
+
+        // Completed notification
+        val completed = helper.formatNotificationContent("completed", "Max Detailing", "Full Spa")
+        org.junit.Assert.assertNotNull(completed)
+        assertTrue(completed!!.first.contains("Completed"))
+        assertTrue(completed.second.contains("ready for pickup"))
+
+        // Cancelled notification
+        val cancelled = helper.formatNotificationContent("cancelled", "Max Detailing", "Wheel Alignment")
+        org.junit.Assert.assertNotNull(cancelled)
+        assertTrue(cancelled!!.first.contains("Cancelled") || cancelled.first.contains("Update"))
+
+        // Pending does not emit customer alert
+        val pending = helper.formatNotificationContent("pending", "Max Detailing", "Foam Wash")
+        org.junit.Assert.assertNull(pending)
     }
 }

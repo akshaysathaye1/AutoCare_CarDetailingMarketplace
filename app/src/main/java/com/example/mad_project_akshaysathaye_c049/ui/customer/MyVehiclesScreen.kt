@@ -14,9 +14,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -65,6 +73,12 @@ fun MyVehiclesScreen(
 
     fun loadVehicles() {
         val ownerId = authRepository.getEffectiveUserId("CUSTOMER")
+        if (ownerId.isBlank()) {
+            isLoading = false
+            errorMessage = "Please log in to view your registered vehicles."
+            return
+        }
+
         coroutineScope.launch {
             isLoading = true
             errorMessage = null
@@ -72,7 +86,15 @@ fun MyVehiclesScreen(
             if (result.isSuccess) {
                 vehiclesList = result.getOrDefault(emptyList())
             } else {
-                errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Failed to load vehicles"
+                val ex = result.exceptionOrNull()
+                val rawMsg = ex?.localizedMessage ?: ""
+                errorMessage = when {
+                    rawMsg.contains("PERMISSION_DENIED", ignoreCase = true) || rawMsg.contains("permission", ignoreCase = true) ->
+                        "Database access denied. Please verify your account permissions."
+                    rawMsg.contains("network", ignoreCase = true) || rawMsg.contains("unavailable", ignoreCase = true) ->
+                        "Network connection error. Please check your internet connection."
+                    else -> ex?.localizedMessage ?: "Failed to load vehicles"
+                }
             }
             isLoading = false
         }
@@ -83,15 +105,30 @@ fun MyVehiclesScreen(
     }
 
     fun deleteVehicle(vehicle: Vehicle) {
+        val ownerId = authRepository.getEffectiveUserId("CUSTOMER")
+        if (ownerId.isNotBlank() && vehicle.ownerId.isNotBlank() && vehicle.ownerId != ownerId) {
+            errorMessage = "Unauthorized: You can only delete your own registered vehicles."
+            vehicleToDelete = null
+            return
+        }
+
         coroutineScope.launch {
             isDeleting = true
-            val result = vehicleRepository.deleteVehicle(vehicle.id)
+            val result = vehicleRepository.deleteVehicle(vehicle.id, ownerId)
             isDeleting = false
             vehicleToDelete = null
             if (result.isSuccess) {
                 loadVehicles()
             } else {
-                errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Failed to delete vehicle"
+                val ex = result.exceptionOrNull()
+                val rawMsg = ex?.localizedMessage ?: ""
+                errorMessage = when {
+                    rawMsg.contains("PERMISSION_DENIED", ignoreCase = true) || rawMsg.contains("permission", ignoreCase = true) ->
+                        "Permission denied: You can only delete vehicles belonging to your own account."
+                    rawMsg.contains("network", ignoreCase = true) || rawMsg.contains("unavailable", ignoreCase = true) ->
+                        "Network error. Please check your internet connection."
+                    else -> ex?.localizedMessage ?: "Failed to delete vehicle"
+                }
             }
         }
     }
@@ -104,11 +141,20 @@ fun MyVehiclesScreen(
                 onNavigateBack = onNavigateBack,
                 actions = {
                     TextButton(onClick = { onNavigateToAddEditVehicle(null) }) {
-                        Text(
-                            text = "+ Add",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add Vehicle",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Add",
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
                     }
                 }
             )
@@ -125,7 +171,11 @@ fun MyVehiclesScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Text(text = "＋", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Vehicle",
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     ) { paddingValues ->
@@ -158,7 +208,12 @@ fun MyVehiclesScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "⚠️", fontSize = 32.sp)
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(32.dp)
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Unable to load vehicles",
@@ -196,7 +251,12 @@ fun MyVehiclesScreen(
                                 .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "🚗", fontSize = 48.sp)
+                            Icon(
+                                imageVector = Icons.Default.DirectionsCar,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(48.dp)
+                            )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "No Vehicles Registered",
@@ -260,9 +320,11 @@ fun MyVehiclesScreen(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = if (vehicle.type.equals("Bike", ignoreCase = true)) "🏍️" else "🚗",
-                                            fontSize = 26.sp
+                                        Icon(
+                                            imageVector = if (vehicle.type.equals("Bike", ignoreCase = true)) Icons.Default.TwoWheeler else Icons.Default.DirectionsCar,
+                                            contentDescription = vehicle.type,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(28.dp)
                                         )
                                     }
                                 }
@@ -333,6 +395,12 @@ fun MyVehiclesScreen(
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.height(38.dp)
                                 ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                                    )
                                     Text(
                                         text = "Delete",
                                         color = MaterialTheme.colorScheme.error,
@@ -342,13 +410,23 @@ fun MyVehiclesScreen(
 
                                 Spacer(modifier = Modifier.width(10.dp))
 
-                                PrimaryButton(
-                                    text = "Edit Profile",
+                                OutlinedButton(
                                     onClick = { onNavigateToAddEditVehicle(vehicle.id) },
-                                    modifier = Modifier
-                                        .width(130.dp)
-                                        .height(38.dp)
-                                )
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(38.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                                    )
+                                    Text(
+                                        text = "Edit",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
                             }
                         }
                     }

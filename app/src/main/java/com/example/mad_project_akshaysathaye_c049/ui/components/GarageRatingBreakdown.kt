@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,12 +62,13 @@ fun GarageRatingBreakdown(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     repeat(5) { idx ->
-                        Text(
-                            text = if (idx < rounded.toInt()) "?" else "?",
-                            color = StarAmberColor,
-                            style = MaterialTheme.typography.titleMedium
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = if (idx < rounded.toInt()) StarAmberColor else MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -84,12 +89,23 @@ fun GarageRatingBreakdown(
                 modifier = Modifier.padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "$star ?",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = StarAmberColor,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.width(36.dp)
-                )
+                ) {
+                    Text(
+                        text = "$star",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = StarAmberColor
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = StarAmberColor,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
                 LinearProgressIndicator(
                     progress = { fraction },
                     modifier = Modifier

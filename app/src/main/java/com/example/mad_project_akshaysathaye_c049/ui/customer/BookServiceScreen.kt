@@ -1,7 +1,11 @@
 package com.example.mad_project_akshaysathaye_c049.ui.customer
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.mad_project_akshaysathaye_c049.ui.components.GarageImageProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +22,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -102,6 +115,7 @@ fun BookServiceScreen(
     var selectedDateTimestamp by remember { mutableLongStateOf(0L) }
     var selectedTimeSlot by remember { mutableStateOf("") }
     var customerNotes by remember { mutableStateOf("") }
+    var selectedPaymentMethod by remember { mutableStateOf(com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.PAY_AT_GARAGE) }
 
     var isSlotConflict by remember { mutableStateOf(false) }
     var isCheckingSlot by remember { mutableStateOf(false) }
@@ -247,10 +261,12 @@ fun BookServiceScreen(
     LaunchedEffect(selectedDateTimestamp, selectedTimeSlot) {
         if (selectedDateTimestamp > 0L && selectedTimeSlot.isNotBlank() && garage != null) {
             isCheckingSlot = true
+            val customerId = authRepository.getEffectiveUserId("CUSTOMER")
             val conflictRes = bookingRepository.checkSlotConflict(
                 garageId = garage!!.id,
                 scheduledDate = selectedDateTimestamp,
-                scheduledTime = selectedTimeSlot
+                scheduledTime = selectedTimeSlot,
+                customerId = customerId
             )
             isSlotConflict = conflictRes.getOrDefault(false)
             isCheckingSlot = false
@@ -260,11 +276,17 @@ fun BookServiceScreen(
     }
 
     fun submitBooking() {
+        if (isSubmitting) return
+
         val currentGarage = garage
         val currentService = service
         val currentVehicle = selectedVehicle
         val customerId = authRepository.getEffectiveUserId("CUSTOMER")
 
+        if (customerId.isBlank()) {
+            errorMessage = "Please log in to continue booking."
+            return
+        }
         if (currentGarage == null) {
             errorMessage = "Please select a valid workshop."
             return
@@ -274,7 +296,7 @@ fun BookServiceScreen(
             return
         }
         if (currentVehicle == null) {
-            errorMessage = "Please choose a vehicle for the appointment."
+            errorMessage = "Please choose a vehicle for the appointment using '+ Add Vehicle'."
             return
         }
         if (selectedDateTimestamp <= 0L) {
@@ -282,7 +304,11 @@ fun BookServiceScreen(
             return
         }
         if (selectedTimeSlot.isBlank()) {
-            errorMessage = "Please choose a time slot."
+            errorMessage = "Please choose a time slot for your appointment."
+            return
+        }
+        if (isSlotInPast(selectedTimeSlot, selectedDateTimestamp)) {
+            errorMessage = "The selected time slot has already passed for today. Please pick an upcoming slot."
             return
         }
         if (isSlotConflict) {
@@ -293,6 +319,20 @@ fun BookServiceScreen(
         coroutineScope.launch {
             isSubmitting = true
             errorMessage = null
+
+            // Revalidate availability immediately before confirming to prevent race conditions
+            val preCheck = bookingRepository.checkSlotConflict(
+                garageId = currentGarage.id,
+                scheduledDate = selectedDateTimestamp,
+                scheduledTime = selectedTimeSlot,
+                customerId = customerId
+            )
+            if (preCheck.getOrDefault(false)) {
+                isSlotConflict = true
+                errorMessage = "This slot is already reserved. Please select another time slot."
+                isSubmitting = false
+                return@launch
+            }
 
             val vehicleDetailsFormatted = "${currentVehicle.make} ${currentVehicle.model} (${currentVehicle.licensePlate})"
 
@@ -312,16 +352,35 @@ fun BookServiceScreen(
                 vehicleDetails = vehicleDetailsFormatted,
                 customerName = "Customer",
                 createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis()
+                updatedAt = System.currentTimeMillis(),
+                paymentMethod = selectedPaymentMethod,
+                paymentStatus = if (selectedPaymentMethod == com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.ONLINE_TEST) {
+                    com.example.mad_project_akshaysathaye_c049.data.model.PaymentStatus.PENDING_VERIFICATION
+                } else {
+                    com.example.mad_project_akshaysathaye_c049.data.model.PaymentStatus.PENDING
+                },
+                paymentTransactionId = if (selectedPaymentMethod == com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.ONLINE_TEST) {
+                    "TEST_TXN_${System.currentTimeMillis()}"
+                } else ""
             )
 
-            val result = bookingRepository.createBooking(newBooking)
+            val result = bookingRepository.createBookingWithAtomicReservation(newBooking)
             isSubmitting = false
 
             if (result.isSuccess) {
                 confirmedBookingId = result.getOrNull()
             } else {
-                errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Failed to create booking"
+                val ex = result.exceptionOrNull()
+                val rawMsg = ex?.localizedMessage ?: ""
+                errorMessage = when {
+                    rawMsg.contains("SLOT_ALREADY_RESERVED", ignoreCase = true) || rawMsg.contains("already booked", ignoreCase = true) ->
+                        "This workshop and time slot has just been reserved by another customer. Please select another slot."
+                    rawMsg.contains("PERMISSION_DENIED", ignoreCase = true) || rawMsg.contains("permission", ignoreCase = true) ->
+                        "Database access denied. Please verify your account permissions."
+                    rawMsg.contains("network", ignoreCase = true) || rawMsg.contains("unavailable", ignoreCase = true) ->
+                        "Network connection error. Please check your internet connection."
+                    else -> ex?.localizedMessage ?: "Failed to create booking. Please try again."
+                }
             }
         }
     }
@@ -356,6 +415,47 @@ fun BookServiceScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
+                // Validation Error Alert Banner
+                if (errorMessage != null) {
+                    AppCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = errorMessage ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .clickable { errorMessage = null }
+                                    .padding(4.dp)
+                                    .size(18.dp)
+                            )
+                        }
+                    }
+                }
+
                 // 1. Garage & Service Header Summary Card
                 AppCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -367,12 +467,12 @@ fun BookServiceScreen(
                             color = MaterialTheme.colorScheme.primaryContainer,
                             modifier = Modifier.size(54.dp)
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = "🏢", fontSize = 28.sp)
-                            }
+                            Image(
+                                painter = painterResource(id = GarageImageProvider.getGarageImageRes(garage?.id)),
+                                contentDescription = garage?.name ?: "Workshop",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))
@@ -391,7 +491,7 @@ fun BookServiceScreen(
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Row(
@@ -409,11 +509,21 @@ fun BookServiceScreen(
                                 text = service?.name ?: "Detailing Service",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
-                            Text(
-                                text = "⏱ Duration: ~${service?.durationMinutes ?: 60} mins",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Duration: ~${service?.durationMinutes ?: 60} mins",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         PriceComponent(price = service?.price ?: 0.0)
                     }
@@ -564,11 +674,19 @@ fun BookServiceScreen(
 
                 if (isSlotConflict) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "⚠️ Slot $selectedTimeSlot is already booked for this garage. Please pick another time.",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                        )
+                        Text(
+                            text = "Slot $selectedTimeSlot is already booked for this garage. Please pick another time.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(22.dp))
@@ -597,7 +715,12 @@ fun BookServiceScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "🚗", fontSize = 32.sp)
+                            Icon(
+                                imageVector = Icons.Default.DirectionsCar,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "No Vehicles Found",
@@ -637,9 +760,11 @@ fun BookServiceScreen(
                                         .padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = if (vehicle.type.equals("Bike", ignoreCase = true)) "🏍️" else "🚗",
-                                        fontSize = 24.sp
+                                    Icon(
+                                        imageVector = if (vehicle.type.equals("Bike", ignoreCase = true)) Icons.Default.TwoWheeler else Icons.Default.DirectionsCar,
+                                        contentDescription = vehicle.type,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
@@ -660,7 +785,12 @@ fun BookServiceScreen(
                                             modifier = Modifier.size(24.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
-                                                Text("✓", color = MaterialTheme.colorScheme.onPrimary, fontSize = 14.sp)
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = "Selected",
+                                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
                                             }
                                         }
                                     }
@@ -680,6 +810,66 @@ fun BookServiceScreen(
                     onValueChange = { customerNotes = it },
                     label = "e.g. Focus on interior stain, car keys handover note..."
                 )
+
+                Spacer(modifier = Modifier.height(22.dp))
+
+                // 5. Payment Method Selection
+                SectionHeading(title = "5. Payment Method")
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val isGaragePay = selectedPaymentMethod == com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.PAY_AT_GARAGE
+                    FilterChip(
+                        selected = isGaragePay,
+                        onClick = { selectedPaymentMethod = com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.PAY_AT_GARAGE },
+                        label = {
+                            Text("💵 Pay at Workshop")
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    val isOnlineTest = selectedPaymentMethod == com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.ONLINE_TEST
+                    FilterChip(
+                        selected = isOnlineTest,
+                        onClick = { selectedPaymentMethod = com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.ONLINE_TEST },
+                        label = {
+                            Text("💳 Pay Online (Test)")
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                if (selectedPaymentMethod == com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.ONLINE_TEST) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "🧪 Secure Test Mode",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Text(
+                                text = "Generates a simulated payment reference. Real payments require backend signature verification with zero client-side secrets.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Pay conveniently after service completion via Cash, UPI, or Card at the workshop.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -732,8 +922,21 @@ fun BookServiceScreen(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Payment:", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = if (selectedPaymentMethod == com.example.mad_project_akshaysathaye_c049.data.model.PaymentMethod.ONLINE_TEST) "Online (Test Flow)" else "Pay at Workshop",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
@@ -752,7 +955,7 @@ fun BookServiceScreen(
                 PrimaryButton(
                     text = if (isSubmitting) "Confirming Appointment..." else "Confirm & Book Appointment",
                     onClick = { submitBooking() },
-                    enabled = !isSubmitting && !isSlotConflict && selectedVehicle != null && selectedTimeSlot.isNotBlank()
+                    enabled = !isSubmitting
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

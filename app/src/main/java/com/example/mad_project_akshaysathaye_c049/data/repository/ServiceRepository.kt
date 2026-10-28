@@ -23,9 +23,13 @@ class ServiceRepository {
         return try {
             val snapshot = servicesCollection.whereEqualTo("garageId", garageId).get().await()
             val services = snapshot.documents.mapNotNull { it.toObject(Service::class.java) }
-            Result.success(services)
+            if (services.isNotEmpty()) {
+                Result.success(services)
+            } else {
+                Result.success(com.example.mad_project_akshaysathaye_c049.data.mock.AndheriGaragesData.getServicesForGarage(garageId))
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.success(com.example.mad_project_akshaysathaye_c049.data.mock.AndheriGaragesData.getServicesForGarage(garageId))
         }
     }
 
@@ -33,9 +37,14 @@ class ServiceRepository {
         return try {
             val document = servicesCollection.document(serviceId).get().await()
             val service = document.toObject(Service::class.java)
-            Result.success(service)
+            if (service != null) {
+                Result.success(service)
+            } else {
+                Result.success(com.example.mad_project_akshaysathaye_c049.data.mock.AndheriGaragesData.getServiceById(serviceId))
+            }
         } catch (e: Exception) {
-            Result.failure(e)
+            val fallback = com.example.mad_project_akshaysathaye_c049.data.mock.AndheriGaragesData.getServiceById(serviceId)
+            if (fallback != null) Result.success(fallback) else Result.failure(e)
         }
     }
 

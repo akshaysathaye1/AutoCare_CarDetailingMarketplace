@@ -32,6 +32,27 @@ class MainActivity : ComponentActivity() {
             )
         }
 
+        // Initialize AutoCare notification channel
+        com.example.mad_project_akshaysathaye_c049.data.notifications.NotificationHelper.createNotificationChannel(this)
+
+        // Request POST_NOTIFICATIONS on Android 13+ (API 33+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val permissionCheck = androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (permissionCheck != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                androidx.core.app.ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+            }
+        }
+
+        // Synchronize FCM token for the active session
+        com.example.mad_project_akshaysathaye_c049.data.notifications.AutoCareMessagingService.syncDeviceToken(this)
+
         enableEdgeToEdge()
         setContent {
             Mad_project_akshaysathaye_c049Theme {

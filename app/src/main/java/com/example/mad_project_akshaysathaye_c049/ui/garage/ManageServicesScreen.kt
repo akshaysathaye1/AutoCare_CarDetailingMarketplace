@@ -18,6 +18,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -98,30 +105,10 @@ fun ManageServicesScreen(
                     garage = garageRes.getOrNull()
                 }
 
-                // Fallback for mock/test data if owner has not registered a garage record yet
-                if (garage == null) {
+                if (garage == null && currentUserId.isNotBlank()) {
                     val allGaragesRes = garageRepository.getAllGarages()
                     val allGarages = allGaragesRes.getOrDefault(emptyList())
                     garage = allGarages.firstOrNull { it.ownerId == currentUserId }
-                        ?: allGarages.firstOrNull()
-                }
-
-                // If still no garage exists in database, create a default partner garage profile for this owner
-                if (garage == null) {
-                    val defaultGarage = Garage(
-                        ownerId = currentUserId,
-                        name = "Apex Motor Works & Detailing",
-                        description = "Professional automotive detailing studio & care center.",
-                        city = "Bangalore",
-                        address = "Hosur Main Road, Electronic City",
-                        contactNumber = "9876543210",
-                        rating = 4.8,
-                        reviewCount = 12
-                    )
-                    val createRes = garageRepository.createGarage(defaultGarage)
-                    if (createRes.isSuccess) {
-                        garage = defaultGarage
-                    }
                 }
 
                 currentGarage = garage
@@ -197,7 +184,12 @@ fun ManageServicesScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "⚠️", fontSize = 36.sp)
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(36.dp)
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Unable to load services",
@@ -214,6 +206,50 @@ fun ManageServicesScreen(
                                 text = "Retry",
                                 onClick = { loadGarageAndServices() },
                                 modifier = Modifier.width(140.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            currentGarage == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "No Workshop Profile Linked",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Please set up your workshop profile in the Workshop Profile tab before creating or managing detailing service packages.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            PrimaryButton(
+                                text = "Go to Workshop Profile",
+                                onClick = { onNavigateToRoute("garage_profile") },
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
@@ -243,7 +279,12 @@ fun ManageServicesScreen(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(text = "🛠️", fontSize = 26.sp)
+                                        Icon(
+                                            imageVector = Icons.Default.Build,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(28.dp)
+                                        )
                                     }
                                 }
 
@@ -266,7 +307,7 @@ fun ManageServicesScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         PrimaryButton(
-                            text = "+ Add New Service Package",
+                            text = "Add New Service Package",
                             onClick = {
                                 serviceBeingEdited = null
                                 isDialogVisible = true
@@ -304,7 +345,12 @@ fun ManageServicesScreen(
                                         .padding(20.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text(text = "📦", fontSize = 36.sp)
+                                    Icon(
+                                        imageVector = Icons.Default.Build,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier.size(36.dp)
+                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = "No Services Configured",
@@ -359,8 +405,15 @@ fun ManageServicesScreen(
 
                                             Spacer(modifier = Modifier.height(6.dp))
                                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Schedule,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.secondary,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
-                                                    text = "⏱ Est. Duration: ${service.durationMinutes} minutes",
+                                                    text = "Est. Duration: ${service.durationMinutes} min",
                                                     style = MaterialTheme.typography.labelMedium.copy(
                                                         color = MaterialTheme.colorScheme.secondary,
                                                         fontWeight = FontWeight.Medium
@@ -404,11 +457,20 @@ fun ManageServicesScreen(
                                                 serviceToDelete = service
                                             }
                                         ) {
-                                            Text(
-                                                text = "🗑️ Delete",
-                                                color = MaterialTheme.colorScheme.error,
-                                                style = MaterialTheme.typography.labelMedium
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Delete",
+                                                    color = MaterialTheme.colorScheme.error,
+                                                    style = MaterialTheme.typography.labelMedium
+                                                )
+                                            }
                                         }
 
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -419,10 +481,18 @@ fun ManageServicesScreen(
                                                 isDialogVisible = true
                                             }
                                         ) {
-                                            Text(
-                                                text = "✏️ Edit Package",
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Edit Package",
+                                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -436,7 +506,7 @@ fun ManageServicesScreen(
         // Add / Edit Service Dialog
         if (isDialogVisible) {
             val isEditMode = serviceBeingEdited != null
-            val currentGarageId = currentGarage?.id ?: "garage_1"
+            val currentGarageId = currentGarage?.id.orEmpty()
 
             ServiceFormDialog(
                 isEditMode = isEditMode,
@@ -445,6 +515,10 @@ fun ManageServicesScreen(
                 onDismiss = { isDialogVisible = false },
                 onSave = { name, description, price, duration, category, isAvailable ->
                     coroutineScope.launch {
+                        if (currentGarageId.isBlank()) {
+                            snackbarHostState.showSnackbar("Cannot save service: No workshop profile linked.")
+                            return@launch
+                        }
                         isSaving = true
                         try {
                             if (isEditMode) {

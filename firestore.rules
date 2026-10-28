@@ -13,19 +13,34 @@ service cloud.firestore {
     // 2. Garages Collection
     // Anyone authenticated can read garage data.
     // Only users with the 'GARAGE' role can create or update garages.
+    // Ownership constraint: Only the workshop owner (resource.data.ownerId == auth.uid) may update their garage.
+    // Security Protection: Prevent client-side manipulation of rating aggregates.
+    // Clients can never alter rating or reviewCount on update; only trusted backend triggers (Admin SDK) can recalculate them.
     match /garages/{garageId} {
       allow read: if request.auth != null;
-      allow create, update: if request.auth != null 
-                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE';
+      allow create: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE'
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow update: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE'
+                    && resource.data.ownerId == request.auth.uid
+                    && (!('rating' in request.resource.data) || request.resource.data.rating == resource.data.rating)
+                    && (!('reviewCount' in request.resource.data) || request.resource.data.reviewCount == resource.data.reviewCount);
     }
 
     // 3. Services Collection
     // Anyone authenticated can read service data.
-    // Only garage owners can create or update services.
+    // Only the garage owner that owns the parent garage can create, update, or remove services.
     match /services/{serviceId} {
       allow read: if request.auth != null;
-      allow create, update: if request.auth != null 
-                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE';
+      allow create: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE'
+                    && exists(/databases/$(database)/documents/garages/$(request.resource.data.garageId))
+                    && get(/databases/$(database)/documents/garages/$(request.resource.data.garageId)).data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null 
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE'
+                            && exists(/databases/$(database)/documents/garages/$(resource.data.garageId))
+                            && get(/databases/$(database)/documents/garages/$(resource.data.garageId)).data.ownerId == request.auth.uid;
     }
 
     // 4. Vehicles Collection
@@ -37,19 +52,23 @@ service cloud.firestore {
     }
 
     // 5. Bookings Collection
-    // Customers can read their own bookings. Garages can read bookings for their garage.
+    // Customers can read their own bookings.
+    // Workshop owners can read and update bookings strictly for their own garage.
     match /bookings/{bookingId} {
       allow create: if request.auth != null && request.auth.uid == request.resource.data.customerId;
       allow read, update: if request.auth != null && 
                           (request.auth.uid == resource.data.customerId || 
-                           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE'));
+                           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE' &&
+                            exists(/databases/$(database)/documents/garages/$(resource.data.garageId)) &&
+                            get(/databases/$(database)/documents/garages/$(resource.data.garageId)).data.ownerId == request.auth.uid));
     }
 
     // 6. Reviews Collection
     // Anyone authenticated can read reviews.
     // Only the review author (customerId == auth.uid) may create a review.
     // Review updates are restricted to the original author to prevent tampering.
-    // Deletion is not permitted to preserve audit integrity.
+    // Deletion is permitted only by the review author.
+    // Garage owners cannot tamper with customer reviews.
     match /reviews/{reviewId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
@@ -58,10 +77,36 @@ service cloud.firestore {
                     && request.resource.data.rating <= 5
                     && request.resource.data.bookingId != ''
                     && request.resource.data.garageId != '';
-      // Allow customer to update only their own review (e.g., edit comment/rating)
       allow update: if request.auth != null
                     && request.auth.uid == resource.data.customerId
                     && request.auth.uid == request.resource.data.customerId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.customerId;
+    }
+
+    // 7. Slots Collection (Atomic Reservation & Public Availability)
+    // Anyone authenticated can read slot availability (contains non-PII schedule info: garageId, scheduledDate, scheduledTime, isReserved).
+    // Direct client creation allowed only if reserving customer matches auth UID and slot is marked reserved.
+    // Concurrency guarantee: An existing active slot (isReserved == true) can only be updated/deleted by its reserving customer or workshop owner.
+    // If a slot was cancelled/released (isReserved == false), another customer may acquire the slot.
+    match /slots/{slotId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.customerId
+                    && request.resource.data.isReserved == true;
+      allow update: if request.auth != null
+                    && (resource.data.isReserved == false ||
+                        resource.data.status == 'cancelled' ||
+                        resource.data.status == 'available' ||
+                        request.auth.uid == resource.data.customerId ||
+                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE' &&
+                         exists(/databases/$(database)/documents/garages/$(resource.data.garageId)) &&
+                         get(/databases/$(database)/documents/garages/$(resource.data.garageId)).data.ownerId == request.auth.uid));
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.customerId ||
+                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'GARAGE' &&
+                         exists(/databases/$(database)/documents/garages/$(resource.data.garageId)) &&
+                         get(/databases/$(database)/documents/garages/$(resource.data.garageId)).data.ownerId == request.auth.uid));
     }
   }
 }
