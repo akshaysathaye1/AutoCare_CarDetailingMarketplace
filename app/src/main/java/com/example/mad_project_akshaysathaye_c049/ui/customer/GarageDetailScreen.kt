@@ -13,18 +13,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -56,8 +49,6 @@ import com.example.mad_project_akshaysathaye_c049.ui.components.RatingComponent
 import com.example.mad_project_akshaysathaye_c049.ui.components.SecondaryButton
 import com.example.mad_project_akshaysathaye_c049.ui.components.SectionHeading
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -504,6 +495,11 @@ private fun ServicesTabSection(
     }
 }
 
+/**
+ * Tab 2: Reviews Tab
+ * Displays live reviews from Firestore with aggregate rating and individual cards.
+ * Calculates average rating directly from the loaded review list for accuracy.
+ */
 @Composable
 private fun ReviewsTabSection(
     reviews: List<Review>,
@@ -597,10 +593,28 @@ private fun ReviewsTabSection(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = review.customerName.ifBlank { "Customer" },
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(
+                                            shape = RoundedCornerShape(20.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(text = "👤", fontSize = 16.sp)
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = review.customerName.ifBlank { "Verified Customer" },
+                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                            )
+                                        }
+                                    }
+
                                     RatingComponent(rating = review.rating.toDouble())
                                 }
 
