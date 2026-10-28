@@ -1,7 +1,18 @@
 package com.example.mad_project_akshaysathaye_c049.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.firestore.FirebaseFirestore
+import com.example.mad_project_akshaysathaye_c049.data.model.User
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 
 /**
  * AuthRepository manages User Authentication and Firestore Profile synchronization.
@@ -16,6 +27,21 @@ class AuthRepository {
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
+    object DiagnosticLogger {
+        fun d(tag: String, msg: String) {
+            try { android.util.Log.d(tag, msg) } catch (e: Throwable) { println("[$tag][DEBUG] $msg") }
+        }
+        fun i(tag: String, msg: String) {
+            try { android.util.Log.i(tag, msg) } catch (e: Throwable) { println("[$tag][INFO] $msg") }
+        }
+        fun w(tag: String, msg: String) {
+            try { android.util.Log.w(tag, msg) } catch (e: Throwable) { println("[$tag][WARN] $msg") }
+        }
+        fun e(tag: String, msg: String, t: Throwable? = null) {
+            try { android.util.Log.e(tag, msg, t) } catch (e: Throwable) { println("[$tag][ERROR] $msg ${t?.message ?: ""}") }
+        }
+    }
+
     /**
      * Check if a user session is currently active.
      */
@@ -28,7 +54,99 @@ class AuthRepository {
     }
 
     /**
+     * Helper to validate email format safely across Android runtime and JVM unit tests.
+     */
+    fun isValidEmail(email: String): Boolean {
+        val trimmed = email.trim()
+        if (trimmed.isBlank()) return false
+        return try {
+            val pattern = android.util.Patterns.EMAIL_ADDRESS
+            if (pattern != null) {
+                val matcher = pattern.matcher(trimmed)
+                if (matcher != null) matcher.matches() else isFallbackEmailValid(trimmed)
+            } else {
+                isFallbackEmailValid(trimmed)
+            }
+        } catch (e: Throwable) {
+            isFallbackEmailValid(trimmed)
+        }
+    }
+
+    private fun isFallbackEmailValid(email: String): Boolean {
+        val parts = email.split("@")
+        if (parts.size != 2) return false
+        val domain = parts[1]
+        return parts[0].isNotBlank() && domain.contains(".") && !domain.startsWith(".") && !domain.endsWith(".")
+    }
+
+    /**
+     * Validate phone number format.
+     */
+    fun isValidPhone(phone: String): Boolean {
+        val trimmed = phone.trim()
+        if (trimmed.length < 7 || trimmed.length > 15) return false
+        return trimmed.matches(Regex("^[0-9+() -]+$"))
+    }
+
+    /**
+     * Map Firebase Authentication exceptions to precise user-facing error messages.
+     */
+    fun mapAuthException(exception: Exception?): String {
+        if (exception == null) return "Authentication failed. Please check your credentials and try again."
+
+        if (exception is FirebaseAuthInvalidCredentialsException) {
+            return "Invalid email address or password. Please verify your credentials and try again."
+        }
+
+        if (exception is FirebaseAuthInvalidUserException) {
+            return when (exception.errorCode) {
+                "ERROR_USER_DISABLED" -> "This user account has been disabled. Please contact AutoCare support."
+                "ERROR_USER_NOT_FOUND" -> "No account found with this email address. Please check your email or register."
+                else -> "No account found with this email address or the account is disabled."
+            }
+        }
+
+        if (exception is FirebaseNetworkException) {
+            return "Network connection error. Please check your internet connection and try again."
+        }
+
+        if (exception is FirebaseAuthException) {
+            return when (exception.errorCode) {
+                "ERROR_INVALID_CREDENTIAL", "ERROR_WRONG_PASSWORD", "ERROR_INVALID_EMAIL" ->
+                    "Invalid email address or password. Please verify your credentials and try again."
+                "ERROR_USER_NOT_FOUND" ->
+                    "No account found with this email address. Please check your email or register."
+                "ERROR_USER_DISABLED" ->
+                    "This user account has been disabled. Please contact AutoCare support."
+                "ERROR_TOO_MANY_REQUESTS" ->
+                    "Too many failed login attempts. Please wait a few minutes before trying again."
+                "ERROR_OPERATION_NOT_ALLOWED" ->
+                    "Email/Password authentication is disabled in Firebase Console."
+                "ERROR_EMAIL_ALREADY_IN_USE" ->
+                    "An account with this email address already exists. Please sign in instead."
+                "ERROR_WEAK_PASSWORD" ->
+                    "The password is too weak. Please use at least 6 characters."
+                else ->
+                    exception.localizedMessage ?: "Authentication failed. Please verify your details."
+            }
+        }
+
+        val msg = exception.localizedMessage ?: ""
+        val lower = msg.lowercase()
+        return when {
+            lower.contains("credential") || lower.contains("password") || lower.contains("incorrect") || lower.contains("malformed") || lower.contains("expired") ->
+                "Invalid email address or password. Please verify your credentials and try again."
+            lower.contains("no user record") || lower.contains("user-not-found") ->
+                "No account found with this email address. Please check your email or register."
+            lower.contains("network") || lower.contains("timeout") ->
+                "Network connection error. Please check your internet connection."
+            else -> msg.ifBlank { "Authentication failed. Please verify your details." }
+        }
+    }
+
+    /**
      * Register a new user using Firebase Authentication and save their profile & role to Cloud Firestore.
+     * Uses synchronous validation and background coroutine execution with 15-second safety timeout.
      */
     fun registerUser(
         name: String,
@@ -38,51 +156,117 @@ class AuthRepository {
         role: String,
         onResult: (isSuccess: Boolean, errorMessage: String?) -> Unit
     ) {
-        // 1. Basic Field Validation
+        val tag = "AuthRepository"
+        DiagnosticLogger.d(tag, "1. Registration started for email: ${email.trim()}, role: $role")
+
+        // 1. Synchronous Field Validation
         if (name.isBlank() || email.isBlank() || password.isBlank() || phone.isBlank()) {
+            DiagnosticLogger.w(tag, "Registration failed: Missing required fields")
             onResult(false, "Please fill in all the required fields.")
             return
         }
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
+        if (!isValidEmail(email)) {
+            DiagnosticLogger.w(tag, "Registration failed: Invalid email format")
             onResult(false, "Please enter a valid email address.")
             return
         }
+        if (!isValidPhone(phone)) {
+            DiagnosticLogger.w(tag, "Registration failed: Invalid phone format")
+            onResult(false, "Please enter a valid phone number (7-15 digits).")
+            return
+        }
         if (password.length < 6) {
+            DiagnosticLogger.w(tag, "Registration failed: Password too short")
             onResult(false, "Password must be at least 6 characters long.")
             return
         }
-
-        try {
-            // 2. Create Firebase Authentication Account
-            auth.createUserWithEmailAndPassword(email.trim(), password)
-                .addOnSuccessListener { authResult ->
-                    val uid = authResult.user?.uid ?: ""
-                    val userProfile = hashMapOf(
-                        "userId" to uid,
-                        "name" to name.trim(),
-                        "email" to email.trim(),
-                        "phone" to phone.trim(),
-                        "role" to role
-                    )
-
-                    // 3. Save User Profile & Role in Firestore "users" collection
-                    firestore.collection("users").document(uid)
-                        .set(userProfile)
-                        .addOnSuccessListener {
-                            onResult(true, null)
-                        }
-                        .addOnFailureListener { firestoreError ->
-                            // Account created in Auth, but Firestore write had an issue
-                            onResult(false, "Profile save failed: ${firestoreError.localizedMessage}")
-                        }
-                }
-                .addOnFailureListener { authError ->
-                    onResult(false, authError.localizedMessage ?: "Registration failed. Please check credentials.")
-                }
-        } catch (e: Exception) {
-            // Graceful fallback for offline / mock testing before Firebase Console is linked
-            onResult(false, "Firebase service notice: ${e.localizedMessage}")
+        val normalizedRole = User.normalizeRole(role)
+        if (normalizedRole == null) {
+            DiagnosticLogger.w(tag, "Registration failed: Invalid role '$role'")
+            onResult(false, "Please select a valid account role.")
+            return
         }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            registerUserSuspend(name, email, password, phone, normalizedRole, onResult)
+        }
+    }
+
+    suspend fun registerUserSuspend(
+        name: String,
+        email: String,
+        password: String,
+        phone: String,
+        role: String,
+        onResult: (isSuccess: Boolean, errorMessage: String?) -> Unit
+    ) {
+        val tag = "AuthRepository"
+        val normalizedRole = User.normalizeRole(role) ?: "CUSTOMER"
+        try {
+            withTimeout(15000L) { // 15-second safety timeout
+                DiagnosticLogger.d(tag, "2. Firebase Authentication account creation started...")
+                var uid = ""
+
+                try {
+                    val authResult = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+                    uid = authResult.user?.uid ?: ""
+                    DiagnosticLogger.d(tag, "2b. Firebase Authentication account creation completed. UID: $uid")
+                } catch (authException: Exception) {
+                    DiagnosticLogger.w(tag, "2c. Firebase Auth failed: ${authException.javaClass.simpleName} - ${authException.message}")
+                    if (isEmailCollisionException(authException)) {
+                        DiagnosticLogger.i(tag, "4. Email collision detected. Attempting partial registration recovery...")
+                        val signInResult = auth.signInWithEmailAndPassword(email.trim(), password).await()
+                        uid = signInResult.user?.uid ?: ""
+                        DiagnosticLogger.i(tag, "4b. Recovery sign-in completed. UID: $uid")
+                    } else {
+                        throw authException
+                    }
+                }
+
+                if (uid.isBlank()) {
+                    DiagnosticLogger.e(tag, "UID is blank after Auth step.")
+                    logout()
+                    onResult(false, "Failed to retrieve user ID after account creation.")
+                    return@withTimeout
+                }
+
+                // 3. Firestore Profile Creation
+                DiagnosticLogger.d(tag, "3. Firestore profile write started for UID: $uid")
+                val userProfile = hashMapOf(
+                    "userId" to uid,
+                    "name" to name.trim(),
+                    "email" to email.trim(),
+                    "phone" to phone.trim(),
+                    "role" to normalizedRole
+                )
+
+                try {
+                    firestore.collection("users").document(uid).set(userProfile).await()
+                    DiagnosticLogger.d(tag, "3b. Firestore profile write completed successfully for $uid")
+                    DiagnosticLogger.d(tag, "5. Invoking result callback with SUCCESS")
+                    onResult(true, null)
+                } catch (firestoreError: Exception) {
+                    DiagnosticLogger.e(tag, "3c. Firestore profile write failed: ${firestoreError.javaClass.simpleName} - ${firestoreError.message}", firestoreError)
+                    logout()
+                    onResult(false, "Profile save failed: ${firestoreError.localizedMessage}")
+                }
+            }
+        } catch (timeoutEx: kotlinx.coroutines.TimeoutCancellationException) {
+            DiagnosticLogger.e(tag, "Registration timed out after 15 seconds.", timeoutEx)
+            onResult(false, "Registration request timed out. Please check your network connection and try again.")
+        } catch (e: Exception) {
+            DiagnosticLogger.e(tag, "Registration exception: ${e.javaClass.simpleName} - ${e.message}", e)
+            val mappedMsg = mapAuthException(e)
+            onResult(false, mappedMsg)
+        }
+    }
+
+    private fun isEmailCollisionException(exception: Exception?): Boolean {
+        if (exception == null) return false
+        if (exception is FirebaseAuthUserCollisionException) return true
+        if (exception is FirebaseAuthException && exception.errorCode == "ERROR_EMAIL_ALREADY_IN_USE") return true
+        val msg = exception.localizedMessage?.lowercase() ?: ""
+        return msg.contains("email-already-in-use") || msg.contains("already exists") || msg.contains("already in use")
     }
 
     /**
@@ -93,8 +277,12 @@ class AuthRepository {
         password: String,
         onResult: (isSuccess: Boolean, role: String?, errorMessage: String?) -> Unit
     ) {
+        val tag = "AuthRepository"
+        DiagnosticLogger.d(tag, "Login started for email: ${email.trim()}")
+
         // 1. Basic Field Validation
         if (email.isBlank() || password.isBlank()) {
+            DiagnosticLogger.w(tag, "Login failed: Missing email or password")
             onResult(false, null, "Email and password cannot be empty.")
             return
         }
@@ -102,25 +290,153 @@ class AuthRepository {
         try {
             // 2. Authenticate with Firebase Auth
             auth.signInWithEmailAndPassword(email.trim(), password)
-                .addOnSuccessListener { authResult ->
-                    val uid = authResult.user?.uid ?: ""
+                .addOnCompleteListener { authTask ->
+                    try {
+                        if (authTask.isSuccessful) {
+                            DiagnosticLogger.d(tag, "Firebase Authentication sign-in succeeded")
+                            val uid = authTask.result?.user?.uid ?: ""
+                            if (uid.isBlank()) {
+                                DiagnosticLogger.e(tag, "Firebase Auth sign-in succeeded but UID was blank")
+                                logout()
+                                onResult(false, null, "Unable to verify your account. Please sign in again.")
+                                return@addOnCompleteListener
+                            }
 
-                    // 3. Fetch User Role from Cloud Firestore
-                    firestore.collection("users").document(uid).get()
-                        .addOnSuccessListener { documentSnapshot ->
-                            val role = documentSnapshot.getString("role") ?: "CUSTOMER"
-                            onResult(true, role, null)
+                            // 3. Fetch User Role from Cloud Firestore
+                            try {
+                                firestore.collection("users").document(uid).get()
+                                    .addOnCompleteListener { profileTask ->
+                                        try {
+                                            if (profileTask.isSuccessful) {
+                                                val snapshot = profileTask.result
+                                                val profile = snapshot?.data?.let { User.fromFields(it, uid) }
+                                                val role = User.normalizeRole(profile?.role)
+                                                if (role == null) {
+                                                    DiagnosticLogger.w(tag, "Firestore profile missing or invalid role for UID $uid")
+                                                    logout()
+                                                    onResult(false, null, "Your account profile is missing or has an invalid role. Please contact support.")
+                                                } else {
+                                                    DiagnosticLogger.d(tag, "Login successful for UID $uid with role $role")
+                                                    onResult(true, role, null)
+                                                }
+                                            } else {
+                                                val error = profileTask.exception?.localizedMessage ?: "Unknown error"
+                                                DiagnosticLogger.e(tag, "Failed to fetch user profile for UID $uid: $error")
+                                                logout()
+                                                onResult(false, null, "Could not load your account profile. Check your connection and try again.")
+                                            }
+                                        } catch (e: Throwable) {
+                                            DiagnosticLogger.e(tag, "Error processing profileTask: ${e.message}", e)
+                                            logout()
+                                            onResult(false, null, "Could not verify your account role. Please try again.")
+                                        }
+                                    }
+                            } catch (e: Throwable) {
+                                DiagnosticLogger.e(tag, "Exception fetching user profile for UID $uid: ${e.message}", e)
+                                logout()
+                                onResult(false, null, "Could not verify your account role. Please try again.")
+                            }
+                        } else {
+                            val exception = authTask.exception
+                            DiagnosticLogger.w(tag, "Firebase Authentication sign-in failed: ${exception?.message}")
+                            val authError = mapAuthException(exception)
+                            onResult(false, null, authError)
                         }
-                        .addOnFailureListener {
-                            // If Firestore role fetch fails, default to CUSTOMER
-                            onResult(true, "CUSTOMER", null)
-                        }
+                    } catch (e: Throwable) {
+                        DiagnosticLogger.e(tag, "Error inside loginUser completion listener: ${e.message}", e)
+                        onResult(false, null, "Login error: ${e.localizedMessage}")
+                    }
                 }
-                .addOnFailureListener { authError ->
-                    onResult(false, null, authError.localizedMessage ?: "Invalid email or password.")
-                }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            DiagnosticLogger.e(tag, "Unexpected exception during loginUser: ${e.message}", e)
             onResult(false, null, "Firebase service notice: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Fetch user profile from Firestore using the specified or current user ID.
+     */
+    fun getUserProfile(
+        userId: String? = getCurrentUserId(),
+        onResult: (user: User?, errorMessage: String?) -> Unit
+    ) {
+        val targetUid = userId?.trim()
+        if (targetUid.isNullOrBlank()) {
+            onResult(null, "No active user session found.")
+            return
+        }
+
+        try {
+            firestore.collection("users").document(targetUid).get()
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val snapshot = task.result
+                        if (snapshot != null && snapshot.exists() && snapshot.data != null) {
+                            val profile = User.fromFields(snapshot.data!!, targetUid)
+                            val normalizedRole = User.normalizeRole(profile.role)
+                            if (normalizedRole == null) {
+                                onResult(null, "Account profile has an invalid or missing role.")
+                            } else {
+                                onResult(profile, null)
+                            }
+                        } else {
+                            onResult(null, "User profile not found.")
+                        }
+                    } else {
+                        val error = task.exception?.localizedMessage ?: "Failed to load user profile."
+                        onResult(null, error)
+                    }
+                }
+        } catch (e: Throwable) {
+            onResult(null, "Profile fetch notice: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Update non-sensitive profile fields (name, phone) for the current user.
+     * Protected fields (userId, role, garage ownership) are strictly prohibited from client edits.
+     */
+    fun updateUserProfile(
+        name: String,
+        phone: String,
+        onResult: (isSuccess: Boolean, errorMessage: String?) -> Unit
+    ) {
+        val uid = getCurrentUserId()
+        if (uid.isNullOrBlank()) {
+            onResult(false, "User is not authenticated.")
+            return
+        }
+
+        val trimmedName = name.trim()
+        val trimmedPhone = phone.trim()
+
+        if (trimmedName.isBlank()) {
+            onResult(false, "Full name cannot be blank.")
+            return
+        }
+        if (trimmedPhone.isNotBlank() && !isValidPhone(trimmedPhone)) {
+            onResult(false, "Please enter a valid phone number.")
+            return
+        }
+
+        val updates = hashMapOf<String, Any>(
+            "name" to trimmedName,
+            "phone" to trimmedPhone
+        )
+
+        try {
+            firestore.collection("users").document(uid)
+                .update(updates)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        onResult(true, null)
+                    } else {
+                        val error = task.exception?.localizedMessage ?: "Failed to update profile."
+                        onResult(false, error)
+                    }
+                }
+        } catch (e: Throwable) {
+            onResult(false, "Profile update notice: ${e.localizedMessage}")
         }
     }
 
@@ -129,6 +445,7 @@ class AuthRepository {
      */
     fun logout() {
         try {
+            GarageRepository.clearCache()
             auth.signOut()
         } catch (e: Exception) {
             // Ignore if already signed out
