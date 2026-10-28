@@ -1,5 +1,6 @@
 package com.example.mad_project_akshaysathaye_c049.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,17 +17,23 @@ import androidx.compose.ui.unit.dp
 fun AppCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    border: BorderStroke? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val shape = RoundedCornerShape(16.dp)
+    val colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surface
+    )
+    val elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+
     if (onClick != null) {
         Card(
             onClick = onClick,
             modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            shape = shape,
+            colors = colors,
+            elevation = elevation,
+            border = border
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -36,11 +43,10 @@ fun AppCard(
     } else {
         Card(
             modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            shape = shape,
+            colors = colors,
+            elevation = elevation,
+            border = border
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),

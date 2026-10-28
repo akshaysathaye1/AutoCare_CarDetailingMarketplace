@@ -47,4 +47,10 @@ class GarageRepository {
             Result.failure(e)
         }
     }
+
+    companion object {
+        fun clearCache() {
+            // Memory cache reset placeholder
+        }
+    }
 }

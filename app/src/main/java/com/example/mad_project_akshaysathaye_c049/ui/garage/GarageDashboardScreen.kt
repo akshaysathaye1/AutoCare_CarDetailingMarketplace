@@ -1,5 +1,6 @@
 package com.example.mad_project_akshaysathaye_c049.ui.garage
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +44,7 @@ fun GarageDashboardScreen(
             AutoCareTopBar(
                 title = "AutoCare Partner",
                 actions = {
-                    androidx.compose.material3.TextButton(onClick = onLogout) {
+                    TextButton(onClick = onLogout) {
                         Text(
                             text = "Logout",
                             color = MaterialTheme.colorScheme.onPrimary,
@@ -62,6 +64,7 @@ fun GarageDashboardScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)

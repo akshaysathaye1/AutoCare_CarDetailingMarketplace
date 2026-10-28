@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,18 +39,30 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(24.dp)
         ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Text(
+                    text = "🚗",
+                    fontSize = 48.sp,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
             Text(
-                text = "🚗 AutoCare",
+                text = "AutoCare",
                 style = MaterialTheme.typography.displayLarge.copy(
                     color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.ExtraBold,
                     fontSize = 38.sp
                 )
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Car Detailing & Service Booking",
+                text = "Car Detailing & Workshop Marketplace",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
             )
         }
     }

@@ -1,6 +1,5 @@
 package com.example.mad_project_akshaysathaye_c049.ui.auth
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -33,28 +32,29 @@ fun RoleSelectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(24.dp),
+                .padding(20.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "How will you use AutoCare?",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.primary
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Choose your account type to proceed",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             AppCard(
                 onClick = { onRoleSelected("CUSTOMER") },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "🚗", fontSize = 40.sp)
+                Text(text = "🚗", fontSize = 38.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Car Owner (Customer)",
@@ -68,13 +68,13 @@ fun RoleSelectionScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             AppCard(
                 onClick = { onRoleSelected("GARAGE") },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "🔧", fontSize = 40.sp)
+                Text(text = "🔧", fontSize = 38.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Garage / Workshop Owner",

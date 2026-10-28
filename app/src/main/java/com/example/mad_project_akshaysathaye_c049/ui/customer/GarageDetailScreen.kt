@@ -1,5 +1,7 @@
 package com.example.mad_project_akshaysathaye_c049.ui.customer
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +16,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +53,7 @@ import com.example.mad_project_akshaysathaye_c049.ui.components.AutoCareTopBar
 import com.example.mad_project_akshaysathaye_c049.ui.components.PriceComponent
 import com.example.mad_project_akshaysathaye_c049.ui.components.PrimaryButton
 import com.example.mad_project_akshaysathaye_c049.ui.components.RatingComponent
+import com.example.mad_project_akshaysathaye_c049.ui.components.SecondaryButton
 import com.example.mad_project_akshaysathaye_c049.ui.components.SectionHeading
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -80,7 +81,7 @@ fun GarageDetailScreen(
     var servicesError by remember { mutableStateOf<String?>(null) }
     var reviewsError by remember { mutableStateOf<String?>(null) }
 
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) } // 0 = Service, 1 = Reviews, 2 = About
     val coroutineScope = rememberCoroutineScope()
 
     fun loadData() {
@@ -128,10 +129,57 @@ fun GarageDetailScreen(
     Scaffold(
         topBar = {
             AutoCareTopBar(
-                title = garage?.name ?: "Garage Details",
+                title = "Garaje Details",
                 canNavigateBack = true,
-                onNavigateBack = onNavigateBack
+                onNavigateBack = onNavigateBack,
+                actions = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "🔗", fontSize = 18.sp, modifier = Modifier.padding(end = 12.dp))
+                        Text(text = "🔖", fontSize = 18.sp, modifier = Modifier.padding(end = 8.dp))
+                    }
+                }
             )
+        },
+        bottomBar = {
+            val currentGarage = garage
+            val firstService = services.firstOrNull()
+            if (currentGarage != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Call Action Button (only if valid phone number is available)
+                        val hasPhone = currentGarage.contactNumber.isNotBlank()
+                        SecondaryButton(
+                            text = "Call",
+                            onClick = { /* Call action if supported */ },
+                            enabled = hasPhone,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Book Service Action Button
+                        PrimaryButton(
+                            text = "Book Service",
+                            onClick = {
+                                if (firstService != null) {
+                                    onNavigateToServiceDetail(firstService.id)
+                                } else {
+                                    /* Navigates to general service flow */
+                                }
+                            },
+                            modifier = Modifier.weight(1.5f)
+                        )
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         when {
@@ -202,172 +250,152 @@ fun GarageDetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
                         .padding(paddingValues)
                 ) {
-                    // Garage Header Summary Card
-                    AppCard(
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        // 1. Large Hero Image Banner (Matching Left Phone in Reference UI)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(210.dp)
+                                .background(Color(0xFF1E293B))
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(60.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(text = "🏢", fontSize = 30.sp)
-                                }
-                            }
+                            Text(
+                                text = "🚘 🔧 🏎️",
+                                fontSize = 56.sp,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
 
-                            Spacer(modifier = Modifier.width(14.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
+                        // 2. Garage Header Details Card (Matching Left Phone in Reference UI)
+                        Surface(
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 2.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.Top
                                 ) {
-                                    Text(
-                                        text = currentGarage.name,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        modifier = Modifier.weight(1f)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = currentGarage.name.ifBlank { "Motada Auto Service" },
+                                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = currentGarage.address.ifBlank { "Harish Nagar, Karelibagh, Vadodara, Gujarat 390001" },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    RatingComponent(
+                                        rating = currentGarage.rating,
+                                        reviewCount = if (reviews.isNotEmpty()) reviews.size else currentGarage.reviewCount
                                     )
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = if (currentGarage.isOpen) {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceVariant
-                                        }
-                                    ) {
-                                        Text(
-                                            text = if (currentGarage.isOpen) "Open Now" else "Closed",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = if (currentGarage.isOpen) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
                                 }
 
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "📍 ${currentGarage.address}, ${currentGarage.city}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                RatingComponent(
-                                    rating = currentGarage.rating,
-                                    reviewCount = if (reviews.isNotEmpty()) reviews.size else currentGarage.reviewCount
-                                )
-                            }
-                        }
-                    }
+                                Spacer(modifier = Modifier.height(10.dp))
 
-                    // Material 3 Tab Row: Services, Reviews, Info
-                    val tabs = listOf(
-                        Triple("Services", "🛠️", services.size),
-                        Triple("Reviews", "⭐", if (reviews.isNotEmpty()) reviews.size else currentGarage.reviewCount),
-                        Triple("Info", "ℹ️", null)
-                    )
+                                // Tags Row (Distance, Vehicle Types, Operating Hours, Pick & Drop)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "📍 1.2 kms",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        text = "🚗 Car, Bike, Scooter",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
 
-                    androidx.compose.material3.PrimaryTabRow(
-                        selectedTabIndex = selectedTabIndex,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.primary
-                    ) {
-                        tabs.forEachIndexed { index, (title, iconSymbol, count) ->
-                            val isSelected = selectedTabIndex == index
-                            Tab(
-                                selected = isSelected,
-                                onClick = { selectedTabIndex = index },
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "$iconSymbol $title",
-                                            style = MaterialTheme.typography.labelLarge.copy(
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "🕒 ${currentGarage.operatingHours.ifBlank { "9am - 8pm" }}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        text = "🚚 Pick & Drop available",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // 3. Segmented Pill Tabs: Service, Reviews, About (Matching Left Phone in Reference UI)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    val tabTitles = listOf("Service", "Reviews", "About")
+                                    tabTitles.forEachIndexed { index, title ->
+                                        val isSelected = selectedTabIndex == index
+                                        Surface(
+                                            shape = RoundedCornerShape(20.dp),
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                            modifier = Modifier
+                                                .clickable { selectedTabIndex = index }
+                                                .padding(vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = title,
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                ),
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                                             )
-                                        )
-                                        if (count != null && count > 0) {
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Surface(
-                                                shape = RoundedCornerShape(10.dp),
-                                                color = if (isSelected) {
-                                                    MaterialTheme.colorScheme.primaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.surfaceVariant
-                                                }
-                                            ) {
-                                                Text(
-                                                    text = count.toString(),
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
                                         }
                                     }
                                 }
-                            )
+                            }
                         }
-                    }
 
-                    // Tab Contents
-                    when (selectedTabIndex) {
-                        0 -> ServicesTabContent(
-                            services = services,
-                            isLoading = isServicesLoading,
-                            errorMessage = servicesError,
-                            onNavigateToServiceDetail = onNavigateToServiceDetail,
-                            onRetry = {
-                                coroutineScope.launch {
-                                    isServicesLoading = true
-                                    servicesError = null
-                                    val res = serviceRepository.getServicesByGarageId(garageId)
-                                    if (res.isSuccess) {
-                                        services = res.getOrDefault(emptyList())
-                                    } else {
-                                        servicesError = res.exceptionOrNull()?.localizedMessage
-                                    }
-                                    isServicesLoading = false
-                                }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 4. Tab Content Section
+                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                            when (selectedTabIndex) {
+                                0 -> ServicesTabSection(
+                                    services = services,
+                                    isLoading = isServicesLoading,
+                                    errorMessage = servicesError,
+                                    onNavigateToServiceDetail = onNavigateToServiceDetail,
+                                    onRetry = { loadData() }
+                                )
+
+                                1 -> ReviewsTabSection(
+                                    reviews = reviews,
+                                    garageRating = currentGarage.rating,
+                                    reviewCount = currentGarage.reviewCount,
+                                    isLoading = isReviewsLoading,
+                                    errorMessage = reviewsError,
+                                    onRetry = { loadData() }
+                                )
+
+                                2 -> AboutTabSection(garage = currentGarage)
                             }
-                        )
+                        }
 
-                        1 -> ReviewsTabContent(
-                            reviews = reviews,
-                            garageRating = currentGarage.rating,
-                            reviewCount = currentGarage.reviewCount,
-                            isLoading = isReviewsLoading,
-                            errorMessage = reviewsError,
-                            onRetry = {
-                                coroutineScope.launch {
-                                    isReviewsLoading = true
-                                    reviewsError = null
-                                    val res = reviewRepository.getReviewsByGarageId(garageId)
-                                    if (res.isSuccess) {
-                                        reviews = res.getOrDefault(emptyList())
-                                    } else {
-                                        reviewsError = res.exceptionOrNull()?.localizedMessage
-                                    }
-                                    isReviewsLoading = false
-                                }
-                            }
-                        )
-
-                        2 -> InfoTabContent(garage = currentGarage)
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
             }
@@ -375,12 +403,8 @@ fun GarageDetailScreen(
     }
 }
 
-/**
- * Tab 1: Services Tab
- * Displays the list of services for the selected garage.
- */
 @Composable
-private fun ServicesTabContent(
+private fun ServicesTabSection(
     services: List<Service>,
     isLoading: Boolean,
     errorMessage: String?,
@@ -391,170 +415,87 @@ private fun ServicesTabContent(
         isLoading -> {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
+                    .fillMaxWidth()
+                    .height(180.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text("Loading available packages...", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Loading workshop services...", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
 
         errorMessage != null -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                AppCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(text = "⚠️", fontSize = 32.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Failed to load services", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(errorMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        PrimaryButton(text = "Retry", onClick = onRetry, modifier = Modifier.width(130.dp))
-                    }
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "⚠️", fontSize = 32.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Failed to load services", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(errorMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(14.dp))
+                    PrimaryButton(text = "Retry", onClick = onRetry, modifier = Modifier.width(130.dp))
                 }
             }
         }
 
         services.isEmpty() -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                AppCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(text = "🛠️", fontSize = 40.sp)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text("No Services Available", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "This garage has not published detailing or service packages yet.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "🛠️", fontSize = 36.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("No Services Listed", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "This garage has not added service packages yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
 
         else -> {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SectionHeading(title = "Service Packages (${services.size})")
-                        Text(
-                            text = "Select package to view details",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                items(services) { service ->
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                services.forEach { service ->
                     AppCard(
                         onClick = { onNavigateToServiceDetail(service.id) },
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = service.name,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    if (service.category.isNotBlank()) {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.surfaceVariant
-                                        ) {
-                                            Text(
-                                                text = service.category,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                }
-
+                                Text(
+                                    text = service.name,
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
                                 if (service.description.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = service.description,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
                                     )
-                                }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "⏱ Est. ${service.durationMinutes} mins",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            color = MaterialTheme.colorScheme.secondary,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = if (service.isAvailable) {
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceVariant
-                                        }
-                                    ) {
-                                        Text(
-                                            text = if (service.isAvailable) "Available" else "Currently Unavailable",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (service.isAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
 
-                            Column(horizontalAlignment = Alignment.End) {
-                                PriceComponent(price = service.price)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "View →",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            PriceComponent(price = service.price)
                         }
                     }
                 }
@@ -563,13 +504,8 @@ private fun ServicesTabContent(
     }
 }
 
-/**
- * Tab 2: Reviews Tab
- * Displays existing reviews dynamically.
- * Note: Review creation / rating submission is intentionally reserved for Member 4.
- */
 @Composable
-private fun ReviewsTabContent(
+private fun ReviewsTabSection(
     reviews: List<Review>,
     garageRating: Double,
     reviewCount: Int,
@@ -581,170 +517,95 @@ private fun ReviewsTabContent(
         isLoading -> {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
+                    .fillMaxWidth()
+                    .height(180.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text("Loading customer reviews...", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
 
         errorMessage != null -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                AppCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(text = "⚠️", fontSize = 32.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Failed to load reviews", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(errorMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        PrimaryButton(text = "Retry", onClick = onRetry, modifier = Modifier.width(130.dp))
-                    }
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "⚠️", fontSize = 32.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Failed to load reviews", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(errorMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.height(14.dp))
+                    PrimaryButton(text = "Retry", onClick = onRetry, modifier = Modifier.width(130.dp))
                 }
             }
         }
 
         else -> {
-            val effectiveCount = if (reviews.isNotEmpty()) reviews.size else reviewCount
-            val effectiveRating = if (reviews.isNotEmpty()) {
-                val avg = reviews.map { it.rating.toDouble() }.average()
-                if (avg.isNaN()) garageRating else Math.round(avg * 10.0) / 10.0
-            } else garageRating
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                // Overall Rating Summary Banner
-                item {
-                    AppCard(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(end = 16.dp)
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(end = 16.dp)
-                            ) {
-                                Text(
-                                    text = String.format(Locale.getDefault(), "%.1f", effectiveRating),
-                                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                RatingComponent(rating = effectiveRating)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "$effectiveCount reviews",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Text(
+                                text = String.format(Locale.getDefault(), "%.1f", garageRating),
+                                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            RatingComponent(rating = garageRating)
+                        }
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Verified Customer Feedback",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Reviews and ratings submitted by genuine vehicle owners who booked services at this workshop.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Verified Customer Reviews",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Based on $reviewCount completed service appointments.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    SectionHeading(title = "Customer Feedback")
-                    Spacer(modifier = Modifier.height(10.dp))
                 }
 
                 if (reviews.isEmpty()) {
-                    item {
-                        AppCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(text = "⭐", fontSize = 36.sp)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "No reviews yet",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Customer reviews will appear here once bookings are completed.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                    AppCard(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "No written reviews published yet.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 } else {
-                    items(reviews) { review ->
-                        val dateFormatted = try {
-                            SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(review.createdAt))
-                        } catch (e: Exception) {
-                            "Recent"
-                        }
-
-                        AppCard(modifier = Modifier.padding(bottom = 12.dp)) {
+                    reviews.forEach { review ->
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Surface(
-                                            shape = RoundedCornerShape(20.dp),
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(34.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(text = "👤", fontSize = 16.sp)
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Text(
-                                                text = review.customerName.ifBlank { "Verified Customer" },
-                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                                            )
-                                            Text(
-                                                text = dateFormatted,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-
+                                    Text(
+                                        text = review.customerName.ifBlank { "Customer" },
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
                                     RatingComponent(rating = review.rating.toDouble())
                                 }
 
                                 if (review.comment.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = review.comment,
                                         style = MaterialTheme.typography.bodyMedium,
@@ -760,158 +621,23 @@ private fun ReviewsTabContent(
     }
 }
 
-/**
- * Tab 3: Info Tab
- * Displays comprehensive details about the garage using existing Garage model fields.
- */
 @Composable
-private fun InfoTabContent(garage: Garage) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        // 1. About Workshop Card
+private fun AboutTabSection(garage: Garage) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionHeading(title = "About Workshop")
         AppCard(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = garage.description.ifBlank { "Professional automotive detailing studio equipped with modern equipment and certified technicians." },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                text = garage.description.ifBlank { "Harish Nagar, Karelibagh, Vadodara, Gujarat 390001" },
+                style = MaterialTheme.typography.bodyMedium
             )
         }
 
-        // 2. Location & Address Card
-        SectionHeading(title = "Workshop Address")
+        SectionHeading(title = "Operating Hours")
         AppCard(modifier = Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.Top) {
-                Text(text = "📍", fontSize = 20.sp)
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "Address",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = garage.address,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "City: ${garage.city}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            Text(
+                text = garage.operatingHours.ifBlank { "9am - 8pm" },
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
-
-        // 3. Operating Hours & Status Card
-        SectionHeading(title = "Working Hours & Status")
-        AppCard(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "⏰", fontSize = 20.sp)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Operating Hours",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = garage.operatingHours,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = if (garage.isOpen) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    }
-                ) {
-                    Text(
-                        text = if (garage.isOpen) "Open Now" else "Closed",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = if (garage.isOpen) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-        }
-
-        // 4. Contact Information Card
-        SectionHeading(title = "Contact Information")
-        AppCard(modifier = Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "📞", fontSize = 20.sp)
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "Phone Number",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = garage.contactNumber.ifBlank { "Not provided" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-
-        // 5. Workshop Registration Details
-        SectionHeading(title = "Workshop Details")
-        AppCard(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Garage ID", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = garage.id, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Rating Score", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = "${garage.rating} ★ (${garage.reviewCount} reviews)", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                val regDate = try {
-                    SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(garage.createdAt))
-                } catch (e: Exception) {
-                    "AutoCare Verified Partner"
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Partner Since", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = regDate, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
