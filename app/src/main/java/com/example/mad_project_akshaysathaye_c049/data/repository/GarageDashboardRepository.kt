@@ -53,11 +53,19 @@ class GarageDashboardRepository(
 
             // 3. Retrieve bookings, services, and reviews for this garage
             val bookingsResult = bookingRepository.getBookingsByGarageId(garage.id)
+            if (bookingsResult.isFailure) {
+                return Result.failure(bookingsResult.exceptionOrNull() ?: Exception("Failed to load workshop bookings."))
+            }
+
             val servicesResult = serviceRepository.getServicesByGarageId(garage.id)
+            if (servicesResult.isFailure) {
+                return Result.failure(servicesResult.exceptionOrNull() ?: Exception("Failed to load workshop services."))
+            }
+
             val reviewsResult = reviewRepository.getReviewsByGarageId(garage.id)
 
-            val bookings: List<Booking> = bookingsResult.getOrDefault(emptyList())
-            val services: List<Service> = servicesResult.getOrDefault(emptyList())
+            val bookings: List<Booking> = bookingsResult.getOrThrow()
+            val services: List<Service> = servicesResult.getOrThrow()
             val reviews: List<Review> = reviewsResult.getOrDefault(emptyList())
 
             // 4. Compute booking statistics
@@ -65,6 +73,7 @@ class GarageDashboardRepository(
             val confirmedCount = bookings.count { it.status == "confirmed" }
             val inProgressCount = bookings.count { it.status == "in_progress" }
             val completedCount = bookings.count { it.status == "completed" }
+            val cancelledCount = bookings.count { it.status == "cancelled" }
             val totalBookingCount = bookings.size
 
             // 5. Compute revenue (only completed bookings count toward realized revenue)
@@ -105,6 +114,7 @@ class GarageDashboardRepository(
                     confirmedBookingCount = confirmedCount,
                     inProgressBookingCount = inProgressCount,
                     completedBookingCount = completedCount,
+                    cancelledBookingCount = cancelledCount,
                     totalBookingCount = totalBookingCount,
                     totalRevenue = totalRevenue,
                     todayRevenue = todayRevenue,

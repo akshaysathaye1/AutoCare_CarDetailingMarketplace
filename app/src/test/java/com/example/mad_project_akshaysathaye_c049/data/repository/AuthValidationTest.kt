@@ -1,6 +1,8 @@
 package com.example.mad_project_akshaysathaye_c049.data.repository
 
 import com.example.mad_project_akshaysathaye_c049.data.model.User
+import com.example.mad_project_akshaysathaye_c049.ui.auth.sanitizeAuthError
+import com.example.mad_project_akshaysathaye_c049.ui.auth.sanitizeRegisterError
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -188,5 +190,76 @@ class AuthValidationTest {
         val ex = Exception("Network connection error timeout")
         val msg = authRepository.mapAuthException(ex)
         assertEquals("Network connection error. Please check your internet connection.", msg)
+    }
+
+    @Test
+    fun mapAuthException_emailAlreadyInUse_mapsCollisionMessage() {
+        val ex = Exception("The email address is already in use by another account.")
+        val msg = authRepository.mapAuthException(ex)
+        assertEquals("An account with this email address already exists. Please sign in instead.", msg)
+    }
+
+    @Test
+    fun mapAuthException_firestoreDisabledMessage_mapsConsoleActionError() {
+        val ex = Exception("Cloud Firestore API has not been used in project autocare-c049 before or it is disabled.")
+        val msg = authRepository.mapAuthException(ex)
+        assertEquals("Cloud Firestore API is disabled in Firebase Console. Please enable it in project autocare-c049.", msg)
+    }
+
+    @Test
+    fun sanitizeRegisterError_distinguishesProfileTimeoutFromNetworkError() {
+        val timeoutError = "Account created, but profile setup timed out. Cloud Firestore database may be disabled or unavailable in Firebase Console."
+        val sanitized = sanitizeRegisterError(timeoutError)
+        assertEquals(timeoutError, sanitized)
+        assertFalse(sanitized.contains("Please check your internet connection"))
+    }
+
+    @Test
+    fun sanitizeRegisterError_preservesFirestoreDisabledError() {
+        val firestoreDisabled = "Cloud Firestore API is disabled in Firebase Console. Please enable it in project autocare-c049."
+        val sanitized = sanitizeRegisterError(firestoreDisabled)
+        assertEquals(firestoreDisabled, sanitized)
+    }
+
+    @Test
+    fun sanitizeRegisterError_mapsEmailCollision() {
+        val raw = "The email address is already exists or already in use"
+        val sanitized = sanitizeRegisterError(raw)
+        assertEquals("An account with this email address already exists. Please sign in instead.", sanitized)
+    }
+
+    @Test
+    fun sanitizeRegisterError_mapsWeakPassword() {
+        val raw = "The password is too weak."
+        val sanitized = sanitizeRegisterError(raw)
+        assertEquals("The password is too weak. Please use at least 6 characters.", sanitized)
+    }
+
+    @Test
+    fun sanitizeRegisterError_mapsTrueNetworkFailure() {
+        val raw = "com.google.firebase.FirebaseNetworkException: A network error (such as timeout, interrupted connection or unreachable host) has occurred."
+        val sanitized = sanitizeRegisterError(raw)
+        assertEquals("Network connection error. Please check your internet connection.", sanitized)
+    }
+
+    @Test
+    fun sanitizeAuthError_preservesFirestoreError() {
+        val raw = "Could not load your account profile: Cloud Firestore API is disabled in Firebase Console. Please enable it in project autocare-c049."
+        val sanitized = sanitizeAuthError(raw)
+        assertEquals(raw, sanitized)
+    }
+
+    @Test
+    fun sanitizeRegisterError_preservesPermissionDeniedError() {
+        val raw = "Database access permission denied. Please verify your account permissions."
+        val sanitized = sanitizeRegisterError(raw)
+        assertEquals(raw, sanitized)
+    }
+
+    @Test
+    fun mapAuthException_permissionDenied_mapsPermissionError() {
+        val ex = Exception("PERMISSION_DENIED: Missing or insufficient permissions.")
+        val msg = authRepository.mapAuthException(ex)
+        assertEquals("Database access permission denied. Please verify your account permissions.", msg)
     }
 }

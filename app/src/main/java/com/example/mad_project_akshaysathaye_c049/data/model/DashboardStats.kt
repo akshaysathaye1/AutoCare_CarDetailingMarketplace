@@ -27,6 +27,7 @@ data class GarageDashboardStats(
     val confirmedBookingCount: Int = 0,
     val inProgressBookingCount: Int = 0,
     val completedBookingCount: Int = 0,
+    val cancelledBookingCount: Int = 0,
     val totalBookingCount: Int = 0,
     val totalRevenue: Double = 0.0,
     val todayRevenue: Double = 0.0,

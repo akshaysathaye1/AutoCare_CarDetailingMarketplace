@@ -16,11 +16,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -42,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mad_project_akshaysathaye_c049.data.model.Booking
+import com.example.mad_project_akshaysathaye_c049.data.model.BookingStatus
 import com.example.mad_project_akshaysathaye_c049.data.model.Garage
 import com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository
 import com.example.mad_project_akshaysathaye_c049.data.repository.BookingRepository
@@ -95,14 +102,13 @@ fun GarageBookingsScreen(
                 if (currentUserId.isNotBlank()) {
                     val garageRes = garageRepository.getGarageByOwnerId(currentUserId)
                     garage = garageRes.getOrNull()
-                }
 
-                // Fallback for mock/test data if owner has not registered a garage record yet
-                if (garage == null) {
-                    val allGaragesRes = garageRepository.getAllGarages()
-                    val allGarages = allGaragesRes.getOrDefault(emptyList())
-                    garage = allGarages.firstOrNull { it.ownerId == currentUserId }
-                        ?: allGarages.firstOrNull()
+                    // Match strictly by ownerId
+                    if (garage == null) {
+                        val allGaragesRes = garageRepository.getAllGarages()
+                        val allGarages = allGaragesRes.getOrDefault(emptyList())
+                        garage = allGarages.firstOrNull { it.ownerId == currentUserId }
+                    }
                 }
 
                 currentGarage = garage
@@ -116,6 +122,9 @@ fun GarageBookingsScreen(
                     }
                 } else {
                     bookingsList = emptyList()
+                    if (currentUserId.isNotBlank() && garage == null) {
+                        errorMessage = "No registered garage found for this account. Please set up your workshop profile."
+                    }
                 }
             } catch (e: Exception) {
                 errorMessage = e.localizedMessage ?: "An error occurred while loading bookings."
@@ -129,6 +138,19 @@ fun GarageBookingsScreen(
     }
 
     fun executeStatusUpdate(booking: Booking, targetStatus: String) {
+        // Enforce garage ownership
+        val garage = currentGarage
+        if (garage != null && booking.garageId.isNotBlank() && booking.garageId != garage.id) {
+            errorMessage = "Unauthorized: You can only update bookings belonging to your workshop."
+            return
+        }
+
+        // Enforce valid status transition
+        if (!BookingStatus.isValidTransition(booking.status, targetStatus)) {
+            errorMessage = "Invalid status transition: Cannot change status from '${booking.status}' to '$targetStatus'"
+            return
+        }
+
         coroutineScope.launch {
             isProcessingAction = true
             val result = if (targetStatus == "cancelled") {
@@ -304,7 +326,12 @@ fun GarageBookingsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "⚠️", fontSize = 32.sp)
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(32.dp)
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Error Loading Bookings",
@@ -341,7 +368,12 @@ fun GarageBookingsScreen(
                                     .padding(16.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "📋", fontSize = 44.sp)
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.size(44.dp)
+                                )
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
                                     text = "No $selectedFilter Bookings",
@@ -484,15 +516,39 @@ private fun GarageBookingManagementCard(
             text = booking.serviceName.ifBlank { "Detailing Package" },
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.DirectionsCar,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Vehicle: ${booking.vehicleDetails.ifBlank { "Customer Vehicle" }}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = "🚗 Vehicle: ${booking.vehicleDetails.ifBlank { "Customer Vehicle" }}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Customer: ${booking.customerName.ifBlank { "Verified Customer" }}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
-        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         Spacer(modifier = Modifier.height(8.dp))
 
         // Date, Time Slot, and Price
@@ -520,6 +576,12 @@ private fun GarageBookingManagementCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 PriceComponent(price = booking.totalAmount)
+                val payMethodLabel = if (booking.paymentMethod == "online_test") "Online (${booking.paymentStatus})" else "Pay at Workshop"
+                Text(
+                    text = payMethodLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
 
@@ -584,7 +646,7 @@ private fun GarageBookingManagementCard(
 
             "confirmed" -> {
                 PrimaryButton(
-                    text = "▶ Start Service (Vehicle In-Shop)",
+                    text = "Start Service (Vehicle In-Shop)",
                     onClick = onStartJobClick,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -594,7 +656,7 @@ private fun GarageBookingManagementCard(
 
             "in_progress" -> {
                 PrimaryButton(
-                    text = "✓ Mark Service Completed",
+                    text = "Mark Service Completed",
                     onClick = onCompleteJobClick,
                     modifier = Modifier
                         .fillMaxWidth()

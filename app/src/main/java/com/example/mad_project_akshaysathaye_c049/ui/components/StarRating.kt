@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,16 +60,13 @@ fun StarRatingInput(
         ) {
             for (star in 1..maxStars) {
                 val isFilled = star <= currentRating
-                Text(
-                    text = if (isFilled) "?" else "?",
-                    fontSize = starSize.value.sp,
-                    color = if (isFilled) StarAmber else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Rate $star out of $maxStars stars",
+                    tint = if (isFilled) StarAmber else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                     modifier = Modifier
                         .size(starSize)
                         .clickable { onRatingChange(star) }
-                        .semantics {
-                            contentDescription = "Rate $star out of $maxStars stars"
-                        }
                 )
             }
         }
@@ -100,10 +100,11 @@ fun StarRatingDisplay(
         modifier = modifier.padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "?",
-            color = StarAmber,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+        Icon(
+            imageVector = Icons.Default.Star,
+            contentDescription = "Rating",
+            tint = StarAmber,
+            modifier = Modifier.size(18.dp)
         )
         Text(
             text = " ${String.format("%.1f", rating)}",

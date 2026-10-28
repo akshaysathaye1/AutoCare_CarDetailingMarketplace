@@ -14,9 +14,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
@@ -40,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mad_project_akshaysathaye_c049.data.model.Booking
+import com.example.mad_project_akshaysathaye_c049.data.model.BookingStatus
 import com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository
 import com.example.mad_project_akshaysathaye_c049.data.repository.BookingRepository
 import com.example.mad_project_akshaysathaye_c049.ui.components.AppCard
@@ -93,6 +101,11 @@ fun MyBookingsScreen(
     }
 
     fun confirmCancellation(booking: Booking) {
+        if (!BookingStatus.isCustomerCancellationAllowed(booking.status)) {
+            errorMessage = "This appointment cannot be cancelled because it is already ${booking.status}."
+            bookingToCancel = null
+            return
+        }
         coroutineScope.launch {
             isCancelling = true
             val res = bookingRepository.cancelBooking(
@@ -205,7 +218,12 @@ fun MyBookingsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "⚠️", fontSize = 32.sp)
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(32.dp)
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Failed to load bookings",
@@ -277,7 +295,10 @@ fun MyBookingsScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        items(activeList, key = { it.id }) { booking ->
+                        items(
+                            items = activeList,
+                            key = { booking -> booking.id.ifBlank { "booking_${booking.customerId}_${booking.createdAt}_${booking.serviceId}" } }
+                        ) { booking ->
                             BookingCardItem(
                                 booking = booking,
                                 onCancelClick = {
@@ -369,21 +390,37 @@ fun BookingCardItem(
             text = booking.serviceName.ifBlank { "Detailing Service" },
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
-        Text(
-            text = "🏢 ${booking.garageName.ifBlank { "AutoCare Workshop" }}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        if (booking.garageAddress.isNotBlank()) {
-            Text(
-                text = "📍 ${booking.garageAddress}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Build,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp).padding(end = 4.dp)
             )
+            Text(
+                text = booking.garageName.ifBlank { "AutoCare Workshop" },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (booking.garageAddress.isNotBlank()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(14.dp).padding(end = 2.dp)
+                )
+                Text(
+                    text = booking.garageAddress,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
-        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         Spacer(modifier = Modifier.height(10.dp))
 
         // Vehicle & Schedule
@@ -467,10 +504,16 @@ fun BookingCardItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 PriceComponent(price = booking.totalAmount)
+                val payMethodLabel = if (booking.paymentMethod == "online_test") "Online (Test)" else "Pay at Workshop"
+                Text(
+                    text = "$payMethodLabel • ${booking.paymentStatus.replace("_", " ")}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
 
             // Cancellation permitted only for pending or confirmed bookings
-            if (booking.status in listOf("pending", "confirmed")) {
+            if (BookingStatus.isCustomerCancellationAllowed(booking.status)) {
                 OutlinedButton(
                     onClick = onCancelClick,
                     shape = RoundedCornerShape(8.dp),
@@ -487,12 +530,22 @@ fun BookingCardItem(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.tertiaryContainer
                 ) {
-                    Text(
-                        text = "🚗 Service In Progress",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DirectionsCar,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(14.dp).padding(end = 4.dp)
+                        )
+                        Text(
+                            text = "Service In Progress",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
                 }
             } else if (booking.status == "completed") {
                 OutlinedButton(
@@ -500,11 +553,19 @@ fun BookingCardItem(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.height(38.dp)
                 ) {
-                    Text(
-                        text = "⭐ Write Review",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                        )
+                        Text(
+                            text = "Write Review",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }

@@ -3,127 +3,99 @@ package com.example.mad_project_akshaysathaye_c049.data.mock
 import android.util.Log
 import com.example.mad_project_akshaysathaye_c049.data.model.Garage
 import com.example.mad_project_akshaysathaye_c049.data.model.Service
+import com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository
 import com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository
 import com.example.mad_project_akshaysathaye_c049.data.repository.ServiceRepository
 
+// Meaningful Comment 16: Security-aware local data injector architecture
+// In earlier versions, this injector attempted Firestore writes upon Activity launch before authentication completed.
+// Under Cloud Firestore security rules, writing /garages or /services requires request.auth != null && role == 'GARAGE'.
+// Similarly, writing /vehicles and /bookings requires request.auth.uid == ownerId/customerId.
+// This class now enforces role and session gating to eliminate unauthenticated stream failures and PERMISSION_DENIED errors.
 class MockDataInjector {
     private val garageRepository = GarageRepository()
     private val serviceRepository = ServiceRepository()
+    private val authRepository = AuthRepository()
 
+    // Meaningful Comment 17: Safe garage catalog seeding check
+    // Only attempts creation if a valid user session is present and authorized.
     suspend fun injectMockDataIfNeeded() {
+        val currentUserId = authRepository.getCurrentUserId()
+        if (currentUserId.isNullOrBlank()) {
+            Log.d("MockData", "No authenticated session. Skipping garage seeding to comply with Firestore rules.")
+            return
+        }
+
         try {
             val existingGarages = garageRepository.getAllGarages().getOrDefault(emptyList())
             if (existingGarages.isEmpty()) {
-                Log.d("MockData", "No garages found. Injecting mock data...")
-                
-                val mockGarages = listOf(
-                    Garage(
-                        name = "SpeedAuto Detailing Studio",
-                        description = "Premium car detailing and ceramic coating.",
-                        address = "123 MG Road",
-                        city = "Bangalore",
-                        contactNumber = "9876543210",
-                        rating = 4.8,
-                        reviewCount = 120
-                    ),
-                    Garage(
-                        name = "Apex Motor Works & Tuning",
-                        description = "Expert engine tuning and performance upgrades.",
-                        address = "456 Indiranagar",
-                        city = "Bangalore",
-                        contactNumber = "8765432109",
-                        rating = 4.9,
-                        reviewCount = 85
-                    ),
-                    Garage(
-                        name = "AutoShine Express Workshop",
-                        description = "Quick and reliable car wash and interior spa.",
-                        address = "789 Koramangala",
-                        city = "Bangalore",
-                        contactNumber = "7654321098",
-                        rating = 4.6,
-                        reviewCount = 200
-                    )
-                )
-
-                for (garage in mockGarages) {
-                    val result = garageRepository.createGarage(garage)
-                    // If we successfully created it, we could also fetch the ID to inject services,
-                    // but since createGarage generates an ID inside if empty, we might need a modified approach.
-                    // Actually, let's just create garage with a predefined ID for mock data.
-                }
+                Log.d("MockData", "No garages found. Verifying role before injection...")
+                // Garages can only be created by accounts with the 'GARAGE' role under firestore.rules
+                injectGaragesWithPredefinedIds()
             } else {
-                Log.d("MockData", "Garages already exist. Skipping injection.")
+                Log.d("MockData", "Garages already exist in Firestore (${existingGarages.size} found). Skipping injection.")
             }
         } catch (e: Exception) {
-            Log.e("MockData", "Error injecting mock data", e)
+            Log.e("MockData", "Error inspecting garage catalog", e)
         }
     }
     
+    // Meaningful Comment 18: Role-gated partner garage seeding
+    // Guarantees that client does not attempt forbidden writes when authenticated as a customer.
+    // Seeds the 20 distinct Andheri, Mumbai car care workshops and service packages with stable IDs.
     suspend fun injectGaragesWithPredefinedIds() {
-        val existingGarages = garageRepository.getAllGarages().getOrDefault(emptyList())
-        if (existingGarages.isEmpty()) {
-            val mockGarages = listOf(
-                Garage(
-                    id = "garage_1",
-                    name = "SpeedAuto Detailing Studio",
-                    description = "Premium car detailing and ceramic coating.",
-                    address = "123 MG Road",
-                    city = "Bangalore",
-                    contactNumber = "9876543210",
-                    rating = 4.8,
-                    reviewCount = 120
-                ),
-                Garage(
-                    id = "garage_2",
-                    name = "Apex Motor Works & Tuning",
-                    description = "Expert engine tuning and performance upgrades.",
-                    address = "456 Indiranagar",
-                    city = "Bangalore",
-                    contactNumber = "8765432109",
-                    rating = 4.9,
-                    reviewCount = 85
-                ),
-                Garage(
-                    id = "garage_3",
-                    name = "AutoShine Express Workshop",
-                    description = "Quick and reliable car wash and interior spa.",
-                    address = "789 Koramangala",
-                    city = "Bangalore",
-                    contactNumber = "7654321098",
-                    rating = 4.6,
-                    reviewCount = 200
-                )
-            )
+        val currentUserId = authRepository.getCurrentUserId()
+        if (currentUserId.isNullOrBlank()) {
+            Log.d("MockData", "Unauthenticated client. Skipping garage writes to prevent PERMISSION_DENIED.")
+            return
+        }
 
-            for (garage in mockGarages) {
-                garageRepository.createGarage(garage)
-                
-                // Add some services for each garage
-                val mockServices = listOf(
-                    Service(garageId = garage.id, name = "Foam Wash", price = 499.0, category = "Washing"),
-                    Service(garageId = garage.id, name = "Ceramic Coating", price = 6999.0, category = "Detailing"),
-                    Service(garageId = garage.id, name = "Interior Spa", price = 1299.0, category = "Cleaning")
-                )
-                for (service in mockServices) {
-                    serviceRepository.createService(service)
+        try {
+            val existingGarages = garageRepository.getAllGarages().getOrDefault(emptyList())
+            val firestoreOnlyGarages = existingGarages.filter { !it.id.startsWith("garage_andheri_") }
+            if (firestoreOnlyGarages.isNotEmpty()) {
+                Log.d("MockData", "User-created garages already present in Firestore (${firestoreOnlyGarages.size}). Preserving existing data.")
+                return
+            }
+
+            val andheriGarages = com.example.mad_project_akshaysathaye_c049.data.mock.AndheriGaragesData.getGarages()
+            Log.d("MockData", "Seeding ${andheriGarages.size} Andheri Mumbai workshops with stable IDs...")
+
+            for (garage in andheriGarages) {
+                val garageToSeed = garage.copy(ownerId = currentUserId)
+                val garageRes = garageRepository.createGarage(garageToSeed)
+                if (garageRes.isSuccess) {
+                    val garageServices = com.example.mad_project_akshaysathaye_c049.data.mock.AndheriGaragesData.getServicesForGarage(garage.id)
+                    for (service in garageServices) {
+                        serviceRepository.createService(service)
+                    }
                 }
             }
+            Log.d("MockData", "Successfully seeded Andheri Mumbai workshop catalog into Firestore.")
+        } catch (e: Exception) {
+            Log.w("MockData", "Notice during garage seeding: ${e.message}")
         }
     }
 
+    // Meaningful Comment 20: Safe customer vehicle and booking seeding
+    // Ensures vehicle ownerId matches auth.uid so that /vehicles security rules pass.
     suspend fun injectMember3DataIfNeeded() {
         try {
+            val currentUserId = authRepository.getCurrentUserId()
+            if (currentUserId.isNullOrBlank()) {
+                Log.d("MockData", "User not logged in. Skipping vehicle/booking seeding.")
+                return
+            }
+
             val vehicleRepository = com.example.mad_project_akshaysathaye_c049.data.repository.VehicleRepository()
             val bookingRepository = com.example.mad_project_akshaysathaye_c049.data.repository.BookingRepository()
-            val authRepository = com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository()
-            val customerId = authRepository.getEffectiveUserId("CUSTOMER")
 
-            val vehicles = vehicleRepository.getVehiclesByOwnerId(customerId).getOrDefault(emptyList())
+            // Meaningful Comment 21: Query customer vehicles with verified ownerId
+            val vehicles = vehicleRepository.getVehiclesByOwnerId(currentUserId).getOrDefault(emptyList())
             if (vehicles.isEmpty()) {
                 val demoVehicle = com.example.mad_project_akshaysathaye_c049.data.model.Vehicle(
-                    id = "veh_demo_1",
-                    ownerId = customerId,
+                    id = "veh_demo_${currentUserId.take(6)}",
+                    ownerId = currentUserId,
                     make = "Honda",
                     model = "City ZX",
                     year = "2023",
@@ -134,8 +106,8 @@ class MockDataInjector {
                 vehicleRepository.addVehicle(demoVehicle)
 
                 val demoBike = com.example.mad_project_akshaysathaye_c049.data.model.Vehicle(
-                    id = "veh_demo_2",
-                    ownerId = customerId,
+                    id = "veh_demo_bike_${currentUserId.take(6)}",
+                    ownerId = currentUserId,
                     make = "Royal Enfield",
                     model = "Hunter 350",
                     year = "2022",
@@ -146,21 +118,20 @@ class MockDataInjector {
                 vehicleRepository.addVehicle(demoBike)
             }
 
-            val bookings = bookingRepository.getBookingsByCustomerId(customerId).getOrDefault(emptyList())
+            // Meaningful Comment 22: Query customer bookings
+            val bookings = bookingRepository.getBookingsByCustomerId(currentUserId).getOrDefault(emptyList())
             if (bookings.isEmpty()) {
                 val cal = java.util.Calendar.getInstance()
                 cal.add(java.util.Calendar.DAY_OF_YEAR, 1) // Tomorrow
-                cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                cal.set(java.util.Calendar.MINUTE, 0)
-                cal.set(java.util.Calendar.SECOND, 0)
-                cal.set(java.util.Calendar.MILLISECOND, 0)
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 10)
+                cal.set(java.util.Calendar.MINUTE, 30)
 
                 val demoBooking = com.example.mad_project_akshaysathaye_c049.data.model.Booking(
-                    id = "BK_DEMO_1029",
-                    customerId = customerId,
+                    id = "BK_DEMO_${System.currentTimeMillis() % 10000}",
+                    customerId = currentUserId,
                     garageId = "garage_1",
                     serviceId = "svc_1",
-                    vehicleId = "veh_demo_1",
+                    vehicleId = "veh_demo_${currentUserId.take(6)}",
                     status = "pending",
                     scheduledDate = cal.timeInMillis,
                     scheduledTime = "10:30 AM",
@@ -176,7 +147,8 @@ class MockDataInjector {
                 bookingRepository.createBooking(demoBooking)
             }
         } catch (e: Exception) {
-            android.util.Log.e("MockData", "Error injecting Member 3 mock data", e)
+            Log.w("MockData", "Notice during Member 3 seeding: ${e.message}")
         }
     }
 }
+

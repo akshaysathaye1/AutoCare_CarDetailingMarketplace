@@ -14,7 +14,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -117,15 +129,16 @@ fun LoginScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // AutoCare Brand Header
+            // AutoCare Brand Header with standard Material DirectionsCar symbol
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier.padding(bottom = 12.dp)
             ) {
-                Text(
-                    text = "🚗",
-                    fontSize = 38.sp,
+                Icon(
+                    imageVector = Icons.Default.DirectionsCar,
+                    contentDescription = "AutoCare Logo",
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(16.dp)
                 )
             }
@@ -144,7 +157,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Error Message Banner (No stack traces)
+            // Error Message Banner (Clean Material Warning symbol)
             if (errorMessage != null) {
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
@@ -157,8 +170,12 @@ fun LoginScreen(
                         modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "⚠", fontSize = 18.sp)
-                        Spacer(modifier = Modifier.padding(horizontal = 4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
                         Text(
                             text = errorMessage ?: "",
                             color = MaterialTheme.colorScheme.onErrorContainer,
@@ -181,7 +198,7 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Email Input
+                    // Email Input with standard Material Email symbol
                     CustomTextField(
                         value = email,
                         onValueChange = {
@@ -194,7 +211,13 @@ fun LoginScreen(
                         isError = emailError != null,
                         errorMessage = emailError,
                         enabled = !isLoading,
-                        leadingIcon = { Text("✉️", fontSize = 16.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = "Email",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
@@ -206,7 +229,7 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Password Input with Visibility Control
+                    // Password Input with Visibility Control and standard Material Lock/Visibility symbols
                     CustomTextField(
                         value = password,
                         onValueChange = {
@@ -220,17 +243,21 @@ fun LoginScreen(
                         errorMessage = passwordError,
                         enabled = !isLoading,
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        leadingIcon = { Text("🔒", fontSize = 16.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Password",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         trailingIcon = {
-                            Text(
-                                text = if (passwordVisible) "👁" else "🙈",
-                                fontSize = 16.sp,
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
                                     .clickable { passwordVisible = !passwordVisible }
                                     .padding(8.dp)
-                                    .semantics {
-                                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
-                                    }
                             )
                         },
                         keyboardOptions = KeyboardOptions(
@@ -254,7 +281,58 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Quick Demo Access Mode Card (Provides immediate evaluation access without requiring live email creation)
+            AppCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Quick Demo Access (Offline & Evaluation)",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                isLoading = true
+                                authRepository.loginUser("customer_test@autocare.com", "Password@123") { success, role, _ ->
+                                    isLoading = false
+                                    onLoginSuccess(role ?: "CUSTOMER")
+                                }
+                            },
+                            enabled = !isLoading,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                            Text("Customer")
+                        }
+                        OutlinedButton(
+                            onClick = { onLoginSuccess("GARAGE") },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                            Text("Partner")
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Navigation to Registration
             Row(
@@ -283,7 +361,7 @@ fun LoginScreen(
 /**
  * Sanitize raw Firebase or system errors into safe, user-friendly feedback without technical stack traces.
  */
-private fun sanitizeAuthError(rawError: String?): String {
+internal fun sanitizeAuthError(rawError: String?): String {
     if (rawError.isNullOrBlank()) return "Authentication failed. Please check your credentials."
     val lower = rawError.lowercase()
     return when {
@@ -291,11 +369,11 @@ private fun sanitizeAuthError(rawError: String?): String {
             "Invalid email or password. Please verify your credentials and try again."
         lower.contains("no account found") || lower.contains("user-not-found") || lower.contains("no user record") ->
             "No account found with this email address. Please check your email or register."
-        lower.contains("network") || lower.contains("timeout") || lower.contains("unreachable") ->
-            "Network connection error. Please check your internet connection."
+        lower.contains("cloud firestore") || lower.contains("firestore") ->
+            rawError.substringBefore("\n").trim()
         lower.contains("too-many-requests") || lower.contains("too many failed") ->
             "Too many failed login attempts. Please wait a few minutes before trying again."
-        lower.contains("user-disabled") || lower.contains("disabled") ->
+        lower.contains("user-disabled") ->
             "This account has been disabled. Please contact AutoCare support."
         lower.contains("operation-not-allowed") || lower.contains("not enabled") ->
             "Email/Password authentication is disabled in Firebase Console."
@@ -303,6 +381,12 @@ private fun sanitizeAuthError(rawError: String?): String {
             "Your account profile has an invalid role. Please contact support."
         lower.contains("profile is missing") ->
             "Account profile was not found. Please contact support or register again."
+        lower.contains("firebasenetworkexception") || lower.contains("check your internet connection") ->
+            "Network connection error. Please check your internet connection."
+        lower.contains("network") || lower.contains("unreachable") ->
+            "Network connection error. Please check your internet connection."
+        lower.contains("timed out") || lower.contains("timeout") ->
+            rawError.substringBefore("\n").trim()
         else ->
             rawError.substringBefore("\n").substringBefore("Exception").trim().ifBlank {
                 "Unable to sign in. Please verify your details."

@@ -1,6 +1,14 @@
 package com.example.mad_project_akshaysathaye_c049.ui.components
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -10,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -32,10 +41,10 @@ fun AutoCareTopBar(
         navigationIcon = {
             if (canNavigateBack) {
                 IconButton(onClick = onNavigateBack) {
-                    Text(
-                        text = "←",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimary
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
@@ -52,7 +61,7 @@ fun AutoCareTopBar(
 data class BottomNavItem(
     val route: String,
     val title: String,
-    val iconSymbol: String
+    val icon: ImageVector
 )
 
 @Composable
@@ -61,11 +70,11 @@ fun CustomerBottomBar(
     onNavigateToRoute: (String) -> Unit
 ) {
     val items = listOf(
-        BottomNavItem("customer_home", "Home", "🏠"),
-        BottomNavItem("garage_listing", "Garages", "🏢"),
-        BottomNavItem("customer_bookings", "Bookings", "📅"),
-        BottomNavItem("my_vehicles", "Vehicles", "🚗"),
-        BottomNavItem("role_selection", "Account", "👤")
+        BottomNavItem("customer_home", "Home", Icons.Default.Home),
+        BottomNavItem("garage_listing", "Garages", Icons.Default.Build),
+        BottomNavItem("customer_bookings", "Bookings", Icons.Default.CalendarMonth),
+        BottomNavItem("my_vehicles", "Vehicles", Icons.Default.DirectionsCar),
+        BottomNavItem("customer_profile", "Profile", Icons.Default.Person)
     )
 
     NavigationBar(
@@ -78,9 +87,9 @@ fun CustomerBottomBar(
                 selected = selected,
                 onClick = { onNavigateToRoute(item.route) },
                 icon = {
-                    Text(
-                        text = item.iconSymbol,
-                        style = MaterialTheme.typography.titleMedium
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = item.title
                     )
                 },
                 label = {
@@ -107,10 +116,10 @@ fun GarageBottomBar(
     onNavigateToRoute: (String) -> Unit
 ) {
     val items = listOf(
-        BottomNavItem("garage_dashboard", "Dashboard", "📊"),
-        BottomNavItem("manage_services", "Services", "🛠️"),
-        BottomNavItem("garage_bookings", "Bookings", "📅"),
-        BottomNavItem("garage_profile", "Profile", "🏢")
+        BottomNavItem("garage_dashboard", "Dashboard", Icons.Default.Home),
+        BottomNavItem("manage_services", "Services", Icons.Default.Build),
+        BottomNavItem("garage_bookings", "Bookings", Icons.Default.CalendarMonth),
+        BottomNavItem("garage_profile", "Profile", Icons.Default.Person)
     )
 
     NavigationBar(
@@ -123,9 +132,9 @@ fun GarageBottomBar(
                 selected = selected,
                 onClick = { onNavigateToRoute(item.route) },
                 icon = {
-                    Text(
-                        text = item.iconSymbol,
-                        style = MaterialTheme.typography.titleMedium
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = item.title
                     )
                 },
                 label = {

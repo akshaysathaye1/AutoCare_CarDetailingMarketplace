@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.example.mad_project_akshaysathaye_c049.data.model.User
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,10 +23,13 @@ import kotlinx.coroutines.withTimeout
  * Why we need it: It abstracts database and network operations away from our UI Composables,
  *                 keeping our UI clean and easy to maintain.
  */
-class AuthRepository {
+class AuthRepository(
+    private val authProvider: () -> FirebaseAuth = { FirebaseAuth.getInstance() },
+    private val firestoreProvider: () -> FirebaseFirestore = { FirebaseFirestore.getInstance() }
+) {
 
-    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
-    private val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val auth: FirebaseAuth by lazy { authProvider() }
+    private val firestore: FirebaseFirestore by lazy { firestoreProvider() }
 
     object DiagnosticLogger {
         fun d(tag: String, msg: String) {
@@ -53,46 +57,79 @@ class AuthRepository {
         }
     }
 
-    /**
-     * Helper to validate email format safely across Android runtime and JVM unit tests.
-     */
-    fun isValidEmail(email: String): Boolean {
-        val trimmed = email.trim()
-        if (trimmed.isBlank()) return false
-        return try {
-            val pattern = android.util.Patterns.EMAIL_ADDRESS
-            if (pattern != null) {
-                val matcher = pattern.matcher(trimmed)
-                if (matcher != null) matcher.matches() else isFallbackEmailValid(trimmed)
-            } else {
+    companion object {
+        /**
+         * Helper to validate email format safely across Android runtime and JVM unit tests.
+         */
+        fun isValidEmail(email: String): Boolean {
+            val trimmed = email.trim()
+            if (trimmed.isBlank()) return false
+            return try {
+                val pattern = android.util.Patterns.EMAIL_ADDRESS
+                if (pattern != null) {
+                    val matcher = pattern.matcher(trimmed)
+                    if (matcher != null) matcher.matches() else isFallbackEmailValid(trimmed)
+                } else {
+                    isFallbackEmailValid(trimmed)
+                }
+            } catch (e: Throwable) {
                 isFallbackEmailValid(trimmed)
             }
-        } catch (e: Throwable) {
-            isFallbackEmailValid(trimmed)
+        }
+
+        private fun isFallbackEmailValid(email: String): Boolean {
+            val parts = email.split("@")
+            if (parts.size != 2) return false
+            val domain = parts[1]
+            return parts[0].isNotBlank() && domain.contains(".") && !domain.startsWith(".") && !domain.endsWith(".")
+        }
+
+        /**
+         * Validate phone number format (7-15 digits with optional country code, spaces, or hyphens).
+         */
+        fun isValidPhone(phone: String): Boolean {
+            val trimmed = phone.trim()
+            if (trimmed.length < 7 || trimmed.length > 15) return false
+            return trimmed.matches(Regex("^[0-9+() -]+$"))
         }
     }
 
-    private fun isFallbackEmailValid(email: String): Boolean {
-        val parts = email.split("@")
-        if (parts.size != 2) return false
-        val domain = parts[1]
-        return parts[0].isNotBlank() && domain.contains(".") && !domain.startsWith(".") && !domain.endsWith(".")
-    }
+    fun isValidEmail(email: String): Boolean = AuthRepository.isValidEmail(email)
+    fun isValidPhone(phone: String): Boolean = AuthRepository.isValidPhone(phone)
 
     /**
-     * Validate phone number format.
+     * Map Cloud Firestore exceptions to user-facing messages distinguishing
+     * disabled API / permission errors from transient service or timeout issues.
      */
-    fun isValidPhone(phone: String): Boolean {
-        val trimmed = phone.trim()
-        if (trimmed.length < 7 || trimmed.length > 15) return false
-        return trimmed.matches(Regex("^[0-9+() -]+$"))
+    fun mapFirestoreException(exception: FirebaseFirestoreException): String {
+        val msg = exception.localizedMessage ?: ""
+        val lower = msg.lowercase()
+        return when (exception.code) {
+            FirebaseFirestoreException.Code.PERMISSION_DENIED -> {
+                if (lower.contains("api has not been used") || lower.contains("disabled") || lower.contains("overview?project=")) {
+                    "Cloud Firestore API is disabled in Firebase Console. Please enable it in project autocare-c049."
+                } else {
+                    "Database access permission denied. Please verify your account permissions."
+                }
+            }
+            FirebaseFirestoreException.Code.UNAVAILABLE ->
+                "Cloud Firestore service is temporarily unavailable. Please try again later."
+            FirebaseFirestoreException.Code.DEADLINE_EXCEEDED ->
+                "Database request timed out while saving profile. Cloud Firestore may be unreachable."
+            else ->
+                "Database error (${exception.code}): ${exception.localizedMessage ?: "Unable to access database."}"
+        }
     }
 
     /**
-     * Map Firebase Authentication exceptions to precise user-facing error messages.
+     * Map Firebase Authentication and Firestore exceptions to precise user-facing error messages.
      */
     fun mapAuthException(exception: Exception?): String {
         if (exception == null) return "Authentication failed. Please check your credentials and try again."
+
+        if (exception is FirebaseFirestoreException) {
+            return mapFirestoreException(exception)
+        }
 
         if (exception is FirebaseAuthInvalidCredentialsException) {
             return "Invalid email address or password. Please verify your credentials and try again."
@@ -104,6 +141,10 @@ class AuthRepository {
                 "ERROR_USER_NOT_FOUND" -> "No account found with this email address. Please check your email or register."
                 else -> "No account found with this email address or the account is disabled."
             }
+        }
+
+        if (exception is FirebaseAuthUserCollisionException) {
+            return "An account with this email address already exists. Please sign in instead."
         }
 
         if (exception is FirebaseNetworkException) {
@@ -138,8 +179,20 @@ class AuthRepository {
                 "Invalid email address or password. Please verify your credentials and try again."
             lower.contains("no user record") || lower.contains("user-not-found") ->
                 "No account found with this email address. Please check your email or register."
-            lower.contains("network") || lower.contains("timeout") ->
+            lower.contains("email-already-in-use") || lower.contains("already exists") || lower.contains("already in use") ->
+                "An account with this email address already exists. Please sign in instead."
+            lower.contains("weak-password") || lower.contains("weak password") ->
+                "The password is too weak. Please use at least 6 characters."
+            lower.contains("api has not been used") || (lower.contains("disabled") && lower.contains("firestore")) ->
+                "Cloud Firestore API is disabled in Firebase Console. Please enable it in project autocare-c049."
+            lower.contains("permission_denied") || lower.contains("permission denied") || lower.contains("insufficient permissions") ->
+                "Database access permission denied. Please verify your account permissions."
+            lower.contains("profile save failed") || lower.contains("profile setup") || lower.contains("cloud firestore") ->
+                msg
+            lower.contains("network connection error") || lower.contains("firebasenetworkexception") || lower.contains("unknownhostexception") ->
                 "Network connection error. Please check your internet connection."
+            lower.contains("timed out") || lower.contains("timeout") ->
+                msg.ifBlank { "Operation timed out. Please try again." }
             else -> msg.ifBlank { "Authentication failed. Please verify your details." }
         }
     }
@@ -202,22 +255,45 @@ class AuthRepository {
     ) {
         val tag = "AuthRepository"
         val normalizedRole = User.normalizeRole(role) ?: "CUSTOMER"
+        var uid = ""
+        var authStepCompleted = false
+
         try {
             withTimeout(15000L) { // 15-second safety timeout
                 DiagnosticLogger.d(tag, "2. Firebase Authentication account creation started...")
-                var uid = ""
 
                 try {
                     val authResult = auth.createUserWithEmailAndPassword(email.trim(), password).await()
                     uid = authResult.user?.uid ?: ""
+                    authStepCompleted = true
                     DiagnosticLogger.d(tag, "2b. Firebase Authentication account creation completed. UID: $uid")
+                    try {
+                        (authResult.user ?: auth.currentUser)?.getIdToken(false)?.await()
+                    } catch (tokenEx: Exception) {
+                        if (tokenEx is kotlinx.coroutines.CancellationException) throw tokenEx
+                        DiagnosticLogger.w(tag, "Could not pre-fetch ID token: ${tokenEx.message}")
+                    }
                 } catch (authException: Exception) {
+                    if (authException is kotlinx.coroutines.CancellationException) throw authException
                     DiagnosticLogger.w(tag, "2c. Firebase Auth failed: ${authException.javaClass.simpleName} - ${authException.message}")
                     if (isEmailCollisionException(authException)) {
                         DiagnosticLogger.i(tag, "4. Email collision detected. Attempting partial registration recovery...")
-                        val signInResult = auth.signInWithEmailAndPassword(email.trim(), password).await()
-                        uid = signInResult.user?.uid ?: ""
-                        DiagnosticLogger.i(tag, "4b. Recovery sign-in completed. UID: $uid")
+                        try {
+                            val signInResult = auth.signInWithEmailAndPassword(email.trim(), password).await()
+                            uid = signInResult.user?.uid ?: ""
+                            authStepCompleted = true
+                            DiagnosticLogger.i(tag, "4b. Recovery sign-in completed. UID: $uid")
+                            try {
+                                (signInResult.user ?: auth.currentUser)?.getIdToken(false)?.await()
+                            } catch (tokenEx: Exception) {
+                                if (tokenEx is kotlinx.coroutines.CancellationException) throw tokenEx
+                                DiagnosticLogger.w(tag, "Could not pre-fetch ID token on recovery: ${tokenEx.message}")
+                            }
+                        } catch (signInEx: Exception) {
+                            if (signInEx is kotlinx.coroutines.CancellationException) throw signInEx
+                            DiagnosticLogger.w(tag, "Recovery sign-in failed: ${signInEx.message}")
+                            throw authException
+                        }
                     } else {
                         throw authException
                     }
@@ -246,15 +322,35 @@ class AuthRepository {
                     DiagnosticLogger.d(tag, "5. Invoking result callback with SUCCESS")
                     onResult(true, null)
                 } catch (firestoreError: Exception) {
+                    if (firestoreError is kotlinx.coroutines.CancellationException) {
+                        throw firestoreError
+                    }
                     DiagnosticLogger.e(tag, "3c. Firestore profile write failed: ${firestoreError.javaClass.simpleName} - ${firestoreError.message}", firestoreError)
                     logout()
-                    onResult(false, "Profile save failed: ${firestoreError.localizedMessage}")
+                    val errorDetail = if (firestoreError is FirebaseFirestoreException) {
+                        mapFirestoreException(firestoreError)
+                    } else {
+                        "Profile save failed: ${firestoreError.localizedMessage ?: "Unknown database error"}"
+                    }
+                    onResult(false, errorDetail)
                 }
             }
         } catch (timeoutEx: kotlinx.coroutines.TimeoutCancellationException) {
             DiagnosticLogger.e(tag, "Registration timed out after 15 seconds.", timeoutEx)
-            onResult(false, "Registration request timed out. Please check your network connection and try again.")
+            logout()
+            if (authStepCompleted && uid.isNotBlank()) {
+                onResult(
+                    false,
+                    "Account created, but profile setup timed out. Cloud Firestore database may be disabled or unavailable in Firebase Console."
+                )
+            } else {
+                onResult(
+                    false,
+                    "Registration request timed out. Please check your internet connection and try again."
+                )
+            }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             DiagnosticLogger.e(tag, "Registration exception: ${e.javaClass.simpleName} - ${e.message}", e)
             val mappedMsg = mapAuthException(e)
             onResult(false, mappedMsg)
@@ -320,10 +416,15 @@ class AuthRepository {
                                                     onResult(true, role, null)
                                                 }
                                             } else {
-                                                val error = profileTask.exception?.localizedMessage ?: "Unknown error"
+                                                val exception = profileTask.exception
+                                                val error = if (exception is FirebaseFirestoreException) {
+                                                    mapFirestoreException(exception)
+                                                } else {
+                                                    exception?.localizedMessage ?: "Unknown error"
+                                                }
                                                 DiagnosticLogger.e(tag, "Failed to fetch user profile for UID $uid: $error")
                                                 logout()
-                                                onResult(false, null, "Could not load your account profile. Check your connection and try again.")
+                                                onResult(false, null, "Could not load your account profile: $error")
                                             }
                                         } catch (e: Throwable) {
                                             DiagnosticLogger.e(tag, "Error processing profileTask: ${e.message}", e)
@@ -437,6 +538,66 @@ class AuthRepository {
                 }
         } catch (e: Throwable) {
             onResult(false, "Profile update notice: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Suspend function to fetch user profile safely from Cloud Firestore.
+     * Enforces that callers retrieve verified records matching their active session or requested UID.
+     */
+    suspend fun getUserProfileAsync(userId: String? = getCurrentUserId()): Result<User> {
+        val targetUid = userId?.trim()
+        if (targetUid.isNullOrBlank()) {
+            return Result.failure(IllegalStateException("No active user session found."))
+        }
+
+        return try {
+            val snapshot = firestore.collection("users").document(targetUid).get().await()
+            if (snapshot != null && snapshot.exists() && snapshot.data != null) {
+                val profile = User.fromFields(snapshot.data!!, targetUid)
+                Result.success(profile)
+            } else {
+                Result.failure(NoSuchElementException("User profile record not found in Firestore."))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Suspend function to update supported customer profile fields (full name, phone number).
+     * Security Rule: Authenticated UID is extracted strictly from the active session.
+     * Users can ONLY update their own document, preventing cross-tenant privilege escalation.
+     */
+    suspend fun updateUserProfileAsync(name: String, phone: String): Result<Unit> {
+        val uid = getCurrentUserId()
+        if (uid.isNullOrBlank()) {
+            return Result.failure(IllegalStateException("User is not authenticated. Please log in."))
+        }
+
+        val trimmedName = name.trim()
+        val trimmedPhone = phone.trim()
+
+        if (trimmedName.isBlank()) {
+            return Result.failure(IllegalArgumentException("Full name cannot be blank."))
+        }
+        if (trimmedName.length < 2) {
+            return Result.failure(IllegalArgumentException("Full name must be at least 2 characters."))
+        }
+        if (trimmedPhone.isNotBlank() && !isValidPhone(trimmedPhone)) {
+            return Result.failure(IllegalArgumentException("Please enter a valid phone number (7-15 digits)."))
+        }
+
+        val updates = hashMapOf<String, Any>(
+            "name" to trimmedName,
+            "phone" to trimmedPhone
+        )
+
+        return try {
+            firestore.collection("users").document(uid).update(updates).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

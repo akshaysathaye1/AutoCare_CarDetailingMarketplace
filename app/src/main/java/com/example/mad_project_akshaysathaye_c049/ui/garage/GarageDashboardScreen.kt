@@ -1,6 +1,10 @@
 package com.example.mad_project_akshaysathaye_c049.ui.garage
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.mad_project_akshaysathaye_c049.ui.components.GarageImageProvider
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,7 +18,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -34,10 +45,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mad_project_akshaysathaye_c049.data.model.Booking
 import com.example.mad_project_akshaysathaye_c049.data.model.Garage
+import com.example.mad_project_akshaysathaye_c049.data.model.GarageDashboardStats
 import com.example.mad_project_akshaysathaye_c049.data.repository.AuthRepository
-import com.example.mad_project_akshaysathaye_c049.data.repository.BookingRepository
-import com.example.mad_project_akshaysathaye_c049.data.repository.GarageRepository
-import com.example.mad_project_akshaysathaye_c049.data.repository.ServiceRepository
+import com.example.mad_project_akshaysathaye_c049.data.repository.GarageDashboardRepository
 import com.example.mad_project_akshaysathaye_c049.ui.components.AppCard
 import com.example.mad_project_akshaysathaye_c049.ui.components.AutoCareTopBar
 import com.example.mad_project_akshaysathaye_c049.ui.components.GarageBottomBar
@@ -45,15 +55,6 @@ import com.example.mad_project_akshaysathaye_c049.ui.components.PrimaryButton
 import com.example.mad_project_akshaysathaye_c049.ui.components.RatingComponent
 import com.example.mad_project_akshaysathaye_c049.ui.components.SectionHeading
 import kotlinx.coroutines.launch
-
-data class GarageDashboardStats(
-    val garage: Garage? = null,
-    val servicesCount: Int = 0,
-    val totalBookingsCount: Int = 0,
-    val inProgressBookingsCount: Int = 0,
-    val todayRevenue: Double = 0.0,
-    val recentBookings: List<Booking> = emptyList()
-)
 
 @Composable
 fun GarageDashboardScreen(
@@ -63,9 +64,7 @@ fun GarageDashboardScreen(
     onNavigateToRoute: (String) -> Unit,
     onLogout: () -> Unit = {},
     authRepository: AuthRepository = remember { AuthRepository() },
-    garageRepository: GarageRepository = remember { GarageRepository() },
-    serviceRepository: ServiceRepository = remember { ServiceRepository() },
-    bookingRepository: BookingRepository = remember { BookingRepository() }
+    dashboardRepository: GarageDashboardRepository = remember { GarageDashboardRepository() }
 ) {
     var stats by remember { mutableStateOf<GarageDashboardStats?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -85,38 +84,11 @@ fun GarageDashboardScreen(
                     return@launch
                 }
 
-                val garageResult = garageRepository.getGarageByOwnerId(ownerId)
-                val garage = garageResult.getOrNull()
-
-                if (garage != null) {
-                    val servicesResult = serviceRepository.getServicesByGarageId(garage.id)
-                    val services = servicesResult.getOrDefault(emptyList())
-
-                    val bookingsResult = bookingRepository.getBookingsByGarageId(garage.id)
-                    val bookings = bookingsResult.getOrDefault(emptyList())
-
-                    val inProgressCount = bookings.count {
-                        it.status in listOf("pending", "confirmed", "in_progress")
-                    }
-
-                    val revenue = bookings
-                        .filter { it.status == "completed" }
-                        .sumOf { it.totalAmount }
-
-                    val sortedRecentBookings = bookings
-                        .sortedByDescending { it.createdAt }
-                        .take(5)
-
-                    stats = GarageDashboardStats(
-                        garage = garage,
-                        servicesCount = services.size,
-                        totalBookingsCount = bookings.size,
-                        inProgressBookingsCount = inProgressCount,
-                        todayRevenue = revenue,
-                        recentBookings = sortedRecentBookings
-                    )
+                val result = dashboardRepository.getDashboardStats(ownerId)
+                if (result.isSuccess) {
+                    stats = result.getOrNull()
                 } else {
-                    stats = GarageDashboardStats(garage = null)
+                    errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Failed to load dashboard metrics."
                 }
             } catch (e: Exception) {
                 errorMessage = e.localizedMessage ?: "Failed to load garage dashboard statistics."
@@ -191,7 +163,12 @@ fun GarageDashboardScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "⚠️", fontSize = 40.sp)
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(40.dp)
+                            )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "Unable to load dashboard",
@@ -223,7 +200,12 @@ fun GarageDashboardScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "🏢", fontSize = 48.sp)
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(48.dp)
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = "No Garage Profile Linked",
@@ -267,12 +249,12 @@ fun GarageDashboardScreen(
                             color = MaterialTheme.colorScheme.primaryContainer,
                             modifier = Modifier.size(60.dp)
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = "🏢", fontSize = 30.sp)
-                            }
+                            Image(
+                                painter = painterResource(id = GarageImageProvider.getGarageImageRes(garage.id)),
+                                contentDescription = garage.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
 
                         Spacer(modifier = Modifier.width(14.dp))
@@ -323,13 +305,14 @@ fun GarageDashboardScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // 2. Metrics & Services Summary
-                    SectionHeading(title = "Operations Summary")
+                    SectionHeading(title = "Operations & Revenue Analytics")
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Revenue Row: Total Realized Revenue & Today's Earnings
                     Row(modifier = Modifier.fillMaxWidth()) {
                         AppCard(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "₹${s.todayRevenue.toInt()}",
+                                text = "₹${s.totalRevenue.toInt()}",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -337,7 +320,7 @@ fun GarageDashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Total Earnings",
+                                text = "Realized Revenue",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -347,7 +330,7 @@ fun GarageDashboardScreen(
 
                         AppCard(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "${s.servicesCount}",
+                                text = "₹${s.todayRevenue.toInt()}",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.secondary
@@ -355,7 +338,7 @@ fun GarageDashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Active Services",
+                                text = "Today's Earnings",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -364,18 +347,19 @@ fun GarageDashboardScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Status Breakdown Row 1: Total & Pending
                     Row(modifier = Modifier.fillMaxWidth()) {
                         AppCard(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "${s.inProgressBookingsCount}",
+                                text = "${s.totalBookingCount}",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.tertiary
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Active Bookings",
+                                text = "Total Bookings",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -385,7 +369,28 @@ fun GarageDashboardScreen(
 
                         AppCard(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "${s.totalBookingsCount}",
+                                text = "${s.pendingBookingCount}",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Pending Approval",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Status Breakdown Row 2: In-Progress & Completed
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        AppCard(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${s.inProgressBookingCount}",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -393,7 +398,64 @@ fun GarageDashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Total Bookings",
+                                text = "In-Shop / Active",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        AppCard(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${s.completedBookingCount}",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Completed Jobs",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Status Breakdown Row 3: Cancellations & Active Services
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        AppCard(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${s.cancelledBookingCount}",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Cancellations",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        AppCard(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${s.serviceCount}",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Listed Packages",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -408,7 +470,12 @@ fun GarageDashboardScreen(
 
                     AppCard(onClick = onNavigateToServices) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "🛠️", fontSize = 24.sp)
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -421,7 +488,12 @@ fun GarageDashboardScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text(text = "→", style = MaterialTheme.typography.titleLarge)
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
@@ -429,7 +501,12 @@ fun GarageDashboardScreen(
 
                     AppCard(onClick = onNavigateToBookings) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "📅", fontSize = 24.sp)
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -442,7 +519,12 @@ fun GarageDashboardScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text(text = "→", style = MaterialTheme.typography.titleLarge)
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
@@ -450,7 +532,12 @@ fun GarageDashboardScreen(
 
                     AppCard(onClick = onNavigateToProfile) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "📍", fontSize = 24.sp)
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -463,7 +550,12 @@ fun GarageDashboardScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text(text = "→", style = MaterialTheme.typography.titleLarge)
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
@@ -481,7 +573,12 @@ fun GarageDashboardScreen(
                                     .padding(12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "📅", fontSize = 32.sp)
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.size(36.dp)
+                                )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = "No Bookings Yet",

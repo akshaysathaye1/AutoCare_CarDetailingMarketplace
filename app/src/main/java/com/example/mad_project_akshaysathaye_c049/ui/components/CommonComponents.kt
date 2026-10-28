@@ -2,6 +2,10 @@ package com.example.mad_project_akshaysathaye_c049.ui.components
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,10 +25,11 @@ fun RatingComponent(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "★",
-            color = RatingGold,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+        Icon(
+            imageVector = Icons.Default.Star,
+            contentDescription = "Rating",
+            tint = RatingGold,
+            modifier = Modifier.size(16.dp)
         )
         Text(
             text = String.format("%.1f", rating),
